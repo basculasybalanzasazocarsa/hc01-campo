@@ -783,7 +783,7 @@ function escucharEnviadas(){ try{ dbRef.collection("capturas").orderBy("enviado"
 function pintarEnviadas(){ const el=document.getElementById("enviadas"); if(!el||!window._env) return; const L=window._env;
   el.replaceChildren(h("h3",{},"Enviadas al laboratorio"), L.length?h("div",{cls:"list"},...L.map(c=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},c.servicio)," · ",c.BD?.F||"",h("div",{cls:"hint"},(c.meta?.tecnico||"")+" · "+new Date(c.enviado).toLocaleString("es-NI"))),h("span",{cls:"pill "+(c.estado==="HC generada"?"ok":"warn")},c.estado||"Recibida")))):h("p",{cls:"hint"},"Aún no hay capturas enviadas.")); }
 const GRUN = !!(window.google && google.script && google.script.run);   // abierta desde Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbzVogqE0ARuNujb3yAzJnul8fEOvTcnmmMK_ksnwgzdoCZJouDagXVN8S1te09fUBmb/exec";                                                  // abierta como app instalada (GitHub Pages)
+const API_URL = "https://script.google.com/macros/s/AKfycbw-Esb5K23xBnm6ZJXTZ4sg4vPwLGFoPJlk1lwfz__DmKXoFRZhu4okpleVKDrKZRaW/exec";                                                  // abierta como app instalada (GitHub Pages)
 const MODO_WEB = !GRUN && /^https:\/\/script\.google\.com\//.test(API_URL);
 const MODO_GOOGLE = GRUN || MODO_WEB;                                       // hay servidor del laboratorio
 function leerClave(){ try{ return localStorage.getItem("hc01-clave")||""; }catch(e){ return ""; } }
