@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5e78">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>HC-01 Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tablero de instrumento — barra de servicio fija arriba, pasos como pestañas, una tarjeta de trabajo por paso, barra de navegación abajo */
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --ink:#14232e; --muted:#5b6b77; --line:#d3dbe1;
+  --accent:#0f5e78; --accent-ink:#ffffff; --signal:#c77b06; --ok:#1d7a46; --bad:#b4322b;
+  --field:#f7f9fa; --chip:#e2e9ee;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f171d; --panel:#16222b; --ink:#e3ebf0; --muted:#93a5b2; --line:#2a3a46;
+  --accent:#4fb3d3; --accent-ink:#06202a; --signal:#e9a23b; --ok:#4cc584; --bad:#ef6e64;
+  --field:#1c2a34; --chip:#223441; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171d; --panel:#16222b; --ink:#e3ebf0; --muted:#93a5b2; --line:#2a3a46;
+  --accent:#4fb3d3; --accent-ink:#06202a; --signal:#e9a23b; --ok:#4cc584; --bad:#ef6e64;
+  --field:#1c2a34; --chip:#223441; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;padding-inline:16px;padding-block:0 96px}
+.wrap{max-width:860px;margin:0 auto}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 8px;display:grid;gap:8px}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.02em}
+.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.svc{font-family:var(--f-mono);font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+.status{font-size:13px;color:var(--muted)}
+.steps{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.steps button{flex:0 0 auto;font:600 14px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;display:flex;gap:6px;align-items:center;cursor:pointer;min-height:36px}
+.steps button .n{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.steps button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.steps button.on .n{color:var(--accent-ink)}
+.steps button .dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.steps button .dot.done{background:var(--ok)} .steps button .dot.warn{background:var(--signal)}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:18px}
+h2{font-family:var(--f-display);font-weight:600;font-size:28px;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:20px;margin:0;letter-spacing:.01em}
+.lead{color:var(--muted);margin:0;max-width:65ch}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.grid > *{min-width:0}
+label.f{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{font:500 17px var(--f-body);color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:46px;width:100%}
+input.num{font-family:var(--f-mono);font-size:18px;text-align:right}
+textarea{min-height:110px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:1px}
+input.err{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--field))}
+.hint{font-size:13px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500}
+.hint.bad{color:var(--bad)} .hint.warn{color:var(--signal)}
+.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.calc div{background:var(--field);padding:10px 12px;display:grid;gap:2px}
+.calc span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.calc b{font-family:var(--f-mono);font-weight:500;font-size:18px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:nowrap}
+.seg button{font:600 15px var(--f-body);background:var(--field);color:var(--ink);border:0;border-left:1px solid var(--line);padding:8px 14px;min-height:44px;min-width:56px;cursor:pointer}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.q{display:flex;gap:12px;align-items:center;justify-content:space-between;padding-block:10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.q:last-child{border-bottom:0}
+.q p{margin:0;flex:1 1 280px;min-width:0}
+.btn{font:600 16px var(--f-body);border-radius:8px;padding:10px 16px;min-height:46px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sig{background:var(--signal);border-color:var(--signal);color:#1b1205}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:520px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;background:var(--field)}
+td.l,th.l{text-align:left}
+td input.num{min-height:42px;padding:6px 8px;font-size:17px;min-width:120px}
+.mono{font-family:var(--f-mono)}
+.pill{display:inline-block;font:600 12px var(--f-body);letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:3px 9px;background:var(--chip);color:var(--muted)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.pill.warn{background:color-mix(in srgb,var(--signal) 20%,transparent);color:var(--signal)}
+.note{border-left:4px solid var(--signal);background:color-mix(in srgb,var(--signal) 10%,var(--panel));padding:10px 12px;border-radius:0 8px 8px 0;font-size:15px}
+.note.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--panel))}
+.note.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--panel))}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:500 14px var(--f-mono);border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:6px;padding:6px 9px;min-height:38px;cursor:pointer}
+.chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+details.grp{border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+details.grp summary{cursor:pointer;font-weight:600;padding-block:4px}
+.comp{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.ecc{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:620px){.ecc{grid-template-columns:1fr}}
+@media (max-width:560px){table{min-width:0}th,td{padding:6px 5px}td input.num{min-width:92px;font-size:16px;padding:6px}.hide-sm{display:none}.top .status{width:100%}}
+.plate{max-width:100%;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:8px}
+.plate svg,.forma svg{display:block;width:100%;height:auto}
+svg .body{fill:color-mix(in srgb,var(--accent) 22%,var(--panel));stroke:var(--accent);stroke-width:2}
+svg .ln{stroke:var(--accent);stroke-width:1.2}
+svg .bar{fill:color-mix(in srgb,var(--accent) 38%,var(--panel));stroke:var(--accent);stroke-width:1.5}
+svg .hook{fill:none;stroke:var(--accent);stroke-width:4;stroke-linecap:round}
+svg .pt circle{fill:var(--panel);stroke:var(--accent);stroke-width:1.5}
+svg .pt text{font:600 14px var(--f-mono);fill:var(--ink)}
+svg .pt.filled circle{fill:var(--accent)} svg .pt.filled text{fill:var(--accent-ink)}
+.formas{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding-top:8px}
+.forma{display:grid;gap:4px;justify-items:center;text-align:center;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:8px;padding:8px;cursor:pointer;font:600 14px var(--f-body)}
+.forma small{font:500 12px var(--f-body);color:var(--muted)}
+.forma.on{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+nav.foot{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:6}
+nav.foot .wrap{display:flex;gap:10px;justify-content:space-between;align-items:center}
+.list{display:grid;gap:8px}
+.item{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:10px 12px;flex-wrap:wrap;background:var(--field)}
+.item > div{min-width:0}
+pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+@media (prefers-reduced-motion:no-preference){.steps button,.btn,.seg button{transition:background .15s,color .15s}}
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="top">
+      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1210-1055</small></div>
+      <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
+    </div>
+    <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
+    <div class="steps" id="steps" role="tablist" aria-label="Pasos"></div>
+  </header>
+  <main id="main"></main>
+</div>
+<nav class="foot"><div class="wrap">
+  <button class="btn" id="prevBtn">Anterior</button>
+  <span class="status" id="stepLabel"></span>
+  <button class="btn pri" id="nextBtn">Siguiente</button>
+</div></nav>
+
+<script>
+const INV = {"AN-03":[1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0,1000.0],"AN-04":[0.1,1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0],"AN-05":[1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0,1000.0,2000.0,2000.0],"AN-06":[0.1,0.2,0.2,0.5,1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0],"AN-07":[1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0],"AN-08":[1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0,1000.0,2000.0,2000.0],"AN-09":[1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0],"AN-10":[1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0,1000.0,2000.0,2000.0],"ANC-01":[0.001,0.002,0.002,0.005,0.01,0.02,0.02,0.05,0.1,0.2,0.2,0.5,1.0,2.0,2.0,5.0,10.0,20.0,20.0,50.0,100.0,200.0,200.0,500.0,1000.0,2000.0,2000.0],"BNC-01":[5000.0],"CNC-01":[10000.0],"DNC-01":[20000.0],"BN-12":[1000.0,2000.0,2000.0,5000.0],"BN-13":[1000.0,2000.0,2000.0,5000.0],"BN-14":[1000.0,2000.0,2000.0,5000.0],"BN-15":[1000.0,2000.0,2000.0,5000.0],"BN-01":[5000.0],"BN-02":[5000.0],"BN-03":[5000.0],"BN-04":[5000.0],"BN-05":[5000.0],"BN-06":[5000.0],"BN-07":[5000.0],"BN-10":[5000.0],"BN-11":[5000.0],"CN-01":[10000.0],"CN-02":[10000.0],"CN-03":[10000.0],"CN-04":[10000.0],"CN-05":[10000.0],"CN-06":[10000.0],"CN-07":[10000.0],"CN-08":[10000.0],"CN-09":[10000.0],"CN-11":[10000.0],"CN-12":[10000.0],"DN-01":[20000.0],"DN-02":[20000.0],"DN-03":[20000.0],"DN-04":[20000.0],"DN-05":[20000.0],"DN-06":[20000.0],"DN-07":[20000.0],"DN-08":[20000.0],"DN-09":[20000.0],"DN-10":[20000.0],"DN-11":[20000.0],"DN-12":[20000.0],"DN-13":[20000.0],"DN-14":[20000.0],"DN-15":[20000.0],"DN-16":[20000.0],"DN-17":[20000.0],"DN-18":[20000.0],"DN-19":[20000.0],"DN-20":[20000.0],"DN-21":[20000.0],"DN-22":[20000.0],"DN-23":[20000.0],"DN-24":[20000.0],"DN-25":[20000.0],"DN-26":[20000.0],"DN-27":[20000.0],"DN-28":[20000.0],"DN-29":[20000.0],"DN-30":[20000.0],"DN-31":[20000.0],"DN-32":[20000.0],"DN-33":[20000.0],"DN-34":[20000.0],"DN-35":[20000.0],"DN-36":[20000.0],"DN-37":[20000.0],"DN-38":[20000.0],"DN-39":[20000.0],"DN-40":[20000.0],"DN-41":[20000.0],"DN-42":[20000.0],"DN-43":[20000.0],"DN-44":[20000.0],"DN-45":[20000.0],"DN-46":[20000.0],"DN-47":[20000.0],"DN-48":[20000.0],"DN-49":[20000.0],"DN-50":[20000.0],"DN-51":[20000.0],"DN-53":[20000.0],"DN-54":[20000.0],"DN-55":[20000.0],"DN-56":[20000.0],"DN-57":[20000.0],"DN-58":[20000.0],"DN-59":[20000.0],"DN-60":[20000.0],"DN-61":[20000.0],"DN-62":[20000.0],"DN-63":[20000.0],"DN-64":[20000.0],"DN-65":[20000.0],"DN-66":[20000.0],"DN-67":[20000.0],"DN-68":[20000.0],"DN-69":[20000.0],"DN-70":[20000.0],"DN-71":[20000.0],"DN-72":[20000.0],"DN-73":[20000.0],"DN-74":[20000.0],"DN-75":[20000.0],"DN-76":[20000.0],"DN-77":[20000.0],"DN-78":[20000.0],"DN-79":[20000.0],"DN-80":[20000.0],"DN-81":[20000.0],"DN-82":[20000.0],"DN-83":[20000.0],"DN-84":[20000.0],"DN-85":[20000.0],"DN-86":[20000.0],"DN-87":[20000.0],"DN-88":[20000.0],"DN-89":[20000.0],"DN-90":[20000.0],"DN-91":[20000.0],"DN-92":[20000.0],"DN-93":[20000.0],"DN-94":[20000.0],"DN-95":[20000.0],"DN-96":[20000.0],"DN-97":[20000.0],"DN-98":[20000.0],"DN-99":[20000.0],"DN-100":[20000.0],"DN-101":[20000.0],"DN-102":[20000.0],"DN-103":[20000.0],"DN-104":[20000.0],"DN-105":[20000.0],"DN-106":[20000.0],"DN-107":[20000.0],"DN-108":[20000.0],"DN-109":[20000.0],"DN-110":[20000.0],"DN-111":[20000.0],"DN-112":[20000.0],"DN-113":[20000.0],"DN-114":[20000.0],"DN-115":[20000.0],"DN-116":[20000.0],"DN-117":[20000.0],"DN-118":[20000.0],"DN-119":[20000.0],"DN-120":[20000.0],"DN-121":[20000.0],"DN-122":[20000.0],"DN-123":[20000.0],"DN-124":[20000.0],"DN-125":[20000.0],"DN-126":[20000.0],"DN-127":[20000.0],"DN-128":[20000.0],"DN-129":[20000.0],"DN-130":[20000.0],"DN-131":[20000.0],"DN-132":[20000.0],"DN-133":[20000.0],"DN-134":[20000.0],"DN-135":[20000.0],"DN-136":[20000.0],"DN-137":[20000.0],"DN-138":[20000.0],"DN-139":[20000.0],"DN-140":[20000.0],"DN-141":[20000.0],"DN-142":[20000.0],"DN-143":[20000.0],"DN-144":[20000.0],"DN-145":[20000.0],"DN-146":[20000.0],"DN-147":[20000.0],"DN-148":[20000.0],"DN-149":[20000.0],"DN-150":[20000.0],"DN-151":[20000.0],"DN-152":[20000.0],"DN-153":[20000.0],"DN-154":[20000.0],"DN-155":[20000.0],"DN-156":[20000.0],"DN-157":[20000.0],"DN-158":[20000.0],"DN-159":[20000.0],"DN-160":[20000.0],"DN-161":[20000.0],"DN-162":[20000.0],"DN-163":[20000.0],"DN-164":[20000.0],"DN-165":[20000.0],"DN-166":[20000.0],"DN-167":[20000.0],"DN-168":[20000.0],"DN-169":[20000.0],"DN-170":[20000.0],"DN-171":[20000.0],"DN-172":[20000.0],"DN-173":[20000.0],"DN-174":[20000.0],"DN-175":[20000.0],"DN-176":[20000.0],"DN-177":[20000.0],"DN-178":[20000.0],"DN-179":[20000.0],"DN-180":[20000.0],"DN-181":[20000.0],"DN-182":[20000.0],"DN-183":[20000.0],"DN-184":[20000.0],"DN-185":[20000.0],"DN-186":[20000.0],"DN-187":[20000.0],"DN-188":[20000.0],"DN-189":[20000.0],"DN-190":[20000.0],"DN-191":[20000.0],"DN-192":[20000.0],"DN-193":[20000.0],"DN-194":[20000.0],"DN-195":[20000.0],"DN-196":[20000.0],"DN-197":[20000.0],"DN-198":[20000.0],"DN-199":[20000.0],"DN-200":[20000.0],"DN-201":[20000.0],"G-01":[500000.0],"G-02":[500000.0],"G-03":[500000.0],"G-04":[500000.0],"G-05":[500000.0],"H-01":[1000000.0],"H-02":[1000000.0],"H-03":[1000000.0],"H-04":[1000000.0],"H-05":[1000000.0],"H-06":[1000000.0],"H-07":[1000000.0],"H-08":[1000000.0],"H-09":[1000000.0],"H-10":[1000000.0],"H-11":[1000000.0],"H-12":[1000000.0],"H-13":[1000000.0],"H-14":[1000000.0],"H-15":[1000000.0],"H-16":[1000000.0],"H-17":[1000000.0],"H-18":[1000000.0],"H-19":[1000000.0],"H-20":[1000000.0],"H-21":[1000000.0],"H-22":[1000000.0],"H-23":[1000000.0],"H-24":[1000000.0],"H-25":[1000000.0],"H-26":[1000000.0],"H-27":[1000000.0],"H-28":[1000000.0],"H-29":[1000000.0],"H-30":[1000000.0],"H-31":[1000000.0],"H-32":[1000000.0],"H-33":[1000000.0]};
+const TECNICOS = ["JL","JR","CC","MA","OG","JG","EA","YV","JM","ES","CR","RV","LS"];
+const HIGRO = [1,2,5,12,13,14,15,20,21,22,23,24,25,26,27,32,33,34,35,36,37,38];
+const TIPOS_EQ = ["Balanza Electrónica","Báscula Electrónica","Sistema de Pesaje de Tolva","Sistema de Pesa de Tanque","Báscula Colgante","Báscula Monorriel","Báscula Pesa Palets","Báscula Pesa Eje","Balanza Analizador de Humedad","Báscula Mecánica","Balanza Mecánica","Báscula Electromecánica","Báscula Ensacadora","Sistema de Pesaje de Mixer","Trampa Báscula Ganadera"];
+const TIPO_SERV = ["calibración N°","calibración N° mod.","verificación","mantenimiento"];
+const PREGUNTAS = ["¿Las funciones y componentes del equipo operan adecuadamente para realizar la calibración?","¿El cliente establece las cargas de interés en la prueba de linealidad?","¿Se realiza alguna desviación al procedimiento?","¿La calibración se realiza con el dispositivo de retorno a cero activado?","¿El cliente realiza ajuste de usuario al instrumento?","¿El cliente tiene definido un procedimiento para realizar el ajuste de usuario?","¿El cliente solicita el ajuste de usuario y calibración del instrumento según su periodicidad?","¿El cliente solicita se realice el ajuste con sus pesas?","¿El ajuste de usuario es realizado por el laboratorio previa autorización del cliente?","¿La calibración se realiza en las instalaciones del Laboratorio Azocar?"];
+const COMPONENTES = ["Indicador / Pantalla de lectura","Receptor de carga","Botones / Membrana","Batería","Sistema de carga","Tarjeta principal","Adaptador de corriente 110 V","Cable de alimentación 110 V","Estructura","Celda de carga","Patas / Ruedas","Caja sumadora","Cobertor"];
+const PASOS = [["servicio","Servicio"],["previas","Condiciones previas"],["ambiente","Ambiente inicial"],["iniciales","Pruebas iniciales"],["pesas","Cargas y pesas"],["linealidad","Linealidad"],["repetibilidad","Repetibilidad"],["excentricidad","Excentricidad"],["cierre","Cierre"],["envio","Revisar y enviar"]];
+
+/* ---------- números: coma decimal, espacio de miles ---------- */
+function parseNum(s){ if(s===null||s===undefined) return null; s=String(s).replace(/[\s  ]/g,"").replace(",","."); if(s===""||s==="-") return null; const n=Number(s); return isFinite(n)?n:NaN; }
+function dec(x){ const s=String(x); const i=s.indexOf("."); return i<0?0:s.length-i-1; }
+function fmt(n,d){ if(n===null||n===undefined||n==="N/A") return n===null||n===undefined?"—":"N/A"; if(typeof n!=="number"||!isFinite(n)) return String(n);
+  const dd = d===undefined ? Math.min(6,dec(+n.toFixed(6))) : d; const neg=n<0; let [i,f]=Math.abs(n).toFixed(dd).split(".");
+  i=i.replace(/\B(?=(\d{3})+(?!\d))/g," "); return (neg?"−":"")+i+(f?","+f:""); }
+const r6 = x => Math.round(x*1e6)/1e6;
+
+/* ---------- réplica de BD (cálculos de la plantilla) ---------- */
+function calcBase(s){
+  const N=s.max, O=s.d, P=s.unidad, R=s.alcance, U=+s.ncargas;
+  const out={e:null,clase:null,n:null,min:null,cargas:[],rep:null,exc:null,iniciales:[],avisos:[]};
+  if(!(N>0)||!(O>0)) return out;
+  let e=O; const eq=(a)=>Math.abs(O-a)<1e-12;
+  if(P==="g"){ if(eq(.05))e=2*O; else if(eq(.02))e=5*O; else if(eq(.01))e=10*O; else if(eq(.005))e=2*O; else if(eq(.002))e=5*O; else if(eq(.001))e=10*O; else if(O<=.0005) e="emp"; else if(eq(.1)) e = N>=10000?10*O:O; else if(eq(.5)) e=2*O; }
+  else { if(eq(.0001))e=10*O; else if(eq(.0002))e=5*O; else if(eq(.0005))e=2*O; else if(eq(.1)) e = N>=10000?10*O:O; }
+  if(e==="emp"){ out.avisos.push("Resolución ≤ 0,0005 g: la plantilla pide ingresar el EMT manualmente (Clase I)."); out.clase="I"; return out; }
+  e=r6(e); out.e=e; const AM = P==="g"?e:e*1000; const T = P==="g"? N/e : (N*1000)/(e*1000); out.n=T;
+  let c="Revisar";
+  if(AM>=.001 && T>100000) c="I";
+  else if((AM>=.001&&AM<=.05&&T>=100&&T<=100000)||(AM>=.1&&T>=10000&&T<=100000)) c="II";
+  else if((AM>=.1&&AM<=2&&T>=100&&T<=10000)||(AM>=5&&T>=500&&T<=10000)) c="III";
+  else if(AM>=5&&T>=100&&T<=1000) c="IIII";
+  if(c==="Revisar"){ out.avisos.push("La combinación Max / e no encaja en una clase OIML; la plantilla la trata como Clase I. Revisar con el RT."); c="I"; }
+  out.clase=c; const n=N/e; let min=null;
+  if(c==="I") min=100*e;
+  else if(c==="II"&&n>=100&&n<=100000&&AM>=.001&&AM<=.05) min=20*e;
+  else if(c==="II"&&n>=5000&&n<=100000&&AM>=.1) min=50*e;
+  else if(c==="III"&&n>=100&&n<=10000&&AM>=.1&&AM<=2) min=20*e;
+  else if(c==="III"&&n>=500&&n<=10000&&AM>=5) min=20*e;
+  else if(c==="IIII") min=10*e;
+  else out.avisos.push("Capacidad mínima: la plantilla marca «Revisar».");
+  out.min=min===null?null:r6(min);
+  if(R>0 && [5,6,7,8].includes(U)){
+    const step = {8:.15,7:.15,6:.2,5:.25}[U]*R;
+    const AB=2*step, AC=AB+step, AD = U===5?R:AC+step, AE = U===5?"N/A":AD+step, AF=(U===5||U===6)?"N/A":AE+step, AG=(U<=7)?"N/A":R;
+    out.cargas=[out.min,step,AB,AC,AD,AE,AF,AG].map(v=>typeof v==="number"?r6(v):v);
+    out.rep=r6(R/2); out.exc=r6(R/3); out.iniciales=[out.min,r6(R/2),R];
+  }
+  return out;
+}
+function calcEquipo(s){
+  const b=calcBase(s); const cm=s.cm||{}; const ov=(v,o)=> (o===null||o===undefined||v==="N/A") ? v : o;
+  b.excIni=b.exc;
+  const ce=s.cargasEq; // cargas guardadas para este equipo en la base
+  if(ce && b.cargas.length){ const nv=v=>(v===""||v===null||v===undefined)?null:(String(v).toUpperCase()==="N/A"?"N/A":parseNum(v));
+    // Las cargas guardadas del equipo solo valen si el N° de cargas es el mismo; si el técnico lo cambia, se recalculan.
+    if(!ce.n||String(ce.n)===String(s.ncargas)) b.cargas=b.cargas.map((c,i)=>{ if(c==="N/A") return c; const v=nv(ce.lin[i]); return v===null||v==="N/A"?c:v; });
+    ["rep","exc","excIni"].forEach(k=>{ const v=nv(ce[k]); if(v!==null) b[k]=v; });
+    b.iniciales=b.iniciales.map((c,i)=>{ const v=nv(ce.ini[i]); return v===null?c:v; }); }
+  b.sug={cargas:b.cargas.slice(),rep:b.rep,exc:b.exc,excIni:b.excIni,iniciales:b.iniciales.slice()};
+  b.cargas=b.cargas.map((c,i)=>ov(c,(cm.lin||[])[i])); b.rep=ov(b.rep,cm.rep); b.exc=ov(b.exc,cm.exc); b.excIni=ov(b.excIni,cm.excIni);
+  b.iniciales=b.iniciales.map((c,i)=>ov(c,(cm.ini||[])[i]));
+  return b;
+}
+function emt(m,eq){ if(m===null||m==="N/A"||!eq.e) return null; const e=eq.e, k={I:[50000,200000],II:[5000,20000],III:[500,2000],IIII:[50,200]}[eq.clase]; if(!k) return null;
+  return r6(m<=k[0]*e?e:m<=k[1]*e?2*e:3*e); }
+
+/* ---------- composición de cargas con las pesas ---------- */
+function componer(objetivo_g, sets){
+  const meta=Math.round(objetivo_g*1000); const grupos=new Map();
+  sets.forEach(sc=>(INV[sc]||[]).forEach(v=>{const k=Math.round(v*1000); if(!grupos.has(k))grupos.set(k,[]); grupos.get(k).push({set:sc,v});}));
+  const den=[...grupos.keys()].filter(v=>v<=meta).sort((a,b)=>b-a);
+  const resto=den.map((_,i)=>den.slice(i).reduce((s,v)=>s+v*grupos.get(v).length,0)); resto.push(0);
+  let pasos=0;
+  function dfs(i,falta){ if(falta===0) return []; if(i>=den.length||resto[i]<falta||++pasos>200000) return null; const v=den[i];
+    for(let n=Math.min(grupos.get(v).length,Math.floor(falta/v));n>=0;n--){ const s=dfs(i+1,falta-n*v); if(s) return grupos.get(v).slice(0,n).concat(s);} return null; }
+  return dfs(0,meta);
+}
+
+
+/* ---------- formas del receptor (diagramas de la HC-01, celda de marca en balanzas) ---------- */
+const FORMAS={
+  circular:{nombre:"Circular",celda:"X68",pos:[[100,75],[66,100],[66,50],[134,50],[134,100]]},
+  cuadrado:{nombre:"Cuadrado / rectangular",celda:"AG68",pos:[[100,75],[60,105],[60,45],[140,45],[140,105]]},
+  triangular:{nombre:"Triangular",celda:"AS68",pos:[[100,98],[64,122],[82,78],[118,78],[136,122]]},
+  tolva:{nombre:"Tolva",celda:"BB68",pos:[[58,92],[100,42],[142,92]]},
+  tanque:{nombre:"Tanque",celda:"X75",pos:[[70,100],[70,50],[130,50],[130,100]]},
+  pesaeje:{nombre:"Pesa eje",celda:"AG75",pos:[[42,75],[160,75],[100,75]]},
+  pesaejep:{nombre:"Pesa eje pequeña",celda:"AS75",pos:[[100,75],[52,105],[52,45],[148,45],[148,105]]},
+  carretilla:{nombre:"Carretilla",celda:"BB75",pos:[[100,75],[148,75],[52,75]]},
+  plataforma6:{nombre:"Plataforma de 6 puntos",celda:"BB81",pos:[[100,75],[38,118],[38,32],[100,32],[162,32],[162,118],[100,118]]},
+  colgante:{nombre:"Colgante",celda:"AG82",pos:[],sinExc:true},
+  tolvacolgante:{nombre:"Tolva colgante",celda:"AS81",pos:[],sinExc:true},
+  monorriel:{nombre:"Monorriel",celda:"AG82",pos:[[100,92],[160,92],[40,92]],nota:"La HC-01 Ver. 13 no tiene casilla para monorriel: se marca la casilla de colgante (AG82) y la portada mostrará la figura de colgante. Se aplican 3 cargas de excentricidad a lo largo del riel."}
+};
+function svgEl(tag,a){ const e=document.createElementNS("http://www.w3.org/2000/svg",tag); for(const k in a) e.setAttribute(k,a[k]); return e; }
+function formaSVG(k,vals){
+  const f=FORMAS[k]; const g=svgEl("svg",{viewBox:"0 0 200 150",role:"img","aria-label":"Receptor "+f.nombre}); const B={class:"body"}; const L={class:"ln"};
+  const add=(t,a)=>{ g.append(svgEl(t,a)); };
+  switch(f.dibujo||k){
+    case "circular": add("ellipse",{cx:100,cy:75,rx:80,ry:62,...B}); add("line",{x1:20,y1:75,x2:180,y2:75,...L}); add("line",{x1:100,y1:13,x2:100,y2:137,...L}); break;
+    case "cuadrado": add("rect",{x:20,y:15,width:160,height:120,rx:3,...B}); add("line",{x1:20,y1:75,x2:180,y2:75,...L}); add("line",{x1:100,y1:15,x2:100,y2:135,...L}); break;
+    case "triangular": add("polygon",{points:"100,10 185,140 15,140",...B}); add("line",{x1:100,y1:10,x2:100,y2:140,...L}); add("line",{x1:52,y1:98,x2:148,y2:98,...L}); break;
+    case "tolva": add("ellipse",{cx:100,cy:75,rx:78,ry:66,...B}); break;
+    case "tanque": add("ellipse",{cx:100,cy:75,rx:78,ry:66,...B}); break;
+    case "pesaeje": add("rect",{x:12,y:22,width:176,height:106,...B}); add("line",{x1:12,y1:75,x2:188,y2:75,...L}); [42,100,160].forEach(x=>add("rect",{x:x-11,y:22,width:22,height:106,class:"bar"})); break;
+    case "pesaejep": add("rect",{x:14,y:18,width:76,height:114,...B}); add("rect",{x:110,y:18,width:76,height:114,...B}); break;
+    case "carretilla": add("rect",{x:10,y:50,width:180,height:12,...B}); add("rect",{x:10,y:88,width:180,height:12,...B}); [52,100,148].forEach(x=>add("rect",{x:x-14,y:28,width:28,height:94,class:"bar"})); break;
+    case "plataforma6": add("rect",{x:14,y:14,width:172,height:122,rx:2,...B}); break;
+    case "colgante": add("rect",{x:62,y:20,width:76,height:58,...B}); add("polygon",{points:"62,78 138,78 104,108 96,108",...B}); add("path",{d:"M100 108 v22 a10 10 0 0 1 -20 0",class:"hook"}); break;
+    case "monorriel": add("rect",{x:8,y:26,width:184,height:12,...B}); [40,100,160].forEach(x=>{ add("line",{x1:x,y1:38,x2:x,y2:60,...L}); add("path",{d:`M${x} 60 v8 a7 7 0 0 1 -14 0`,class:"hook"}); }); break;
+    case "tolvacolgante": add("polygon",{points:"30,25 170,25 170,80 100,125 30,80",...B}); break;
+  }
+  f.pos.forEach(([x,y],i)=>{ const filled=vals&&vals[i]!==null&&vals[i]!==undefined; const gg=svgEl("g",{"data-p":i+1,class:"pt"+(filled?" filled":"")}); gg.append(svgEl("circle",{cx:x,cy:y,r:vals?15:13})); const t=svgEl("text",{x,y:y+5,"text-anchor":"middle"}); t.textContent=i+1; gg.append(t); g.append(gg); });
+  return g;
+}
+
+/* ---------- estado ---------- */
+function hoy(){ const d=new Date(); return {d:d.getDate(),m:d.getMonth()+1,a:d.getFullYear()}; }
+function nuevoUid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function nuevo(ejemplo){
+  const f=hoy();
+  const s={uid:nuevoUid(), id:"", ejemplo:!!ejemplo, fecha:f, llegada:null, inicio:null, tipo:"calibración N°", motivo:"", tecnico:"", pgvi:"", consec:null, sufijo:"", cm:{lin:Array(8).fill(null),rep:null,exc:null,ini:[null,null,null]},
+    bd:{codigo:"",procedimiento:"PC-I",direccion:"",equipo:"Balanza Electrónica",cliente:"",marca:"",modelo:"",serie:"",periodo:12,ubicacion:"",lugar:"",correo:"",telefono:"",encargado:""},
+    max:null,d:null,unidad:"g",alcance:null,ncargas:"5",
+    previas:Array(10).fill(""), comp:COMPONENTES.map(()=>({tiene:"",estado:""})),
+    higro:"", t0:null, h0:null, eccIni:Array(7).fill(null), errIni:[null,null,null], ajuste:"", cargaAjuste:null, postAjuste:[null,null,null],
+    sets:[], lin:Array(8).fill(null), rep:Array(5).fill(null), ecc:Array(7).fill(null), forma:"", t1:null, h1:null, obs:"", enviado:null};
+  if(ejemplo){ Object.assign(s,{id:"EJEMPLO-001",pgvi:"0001",consec:1,llegada:"08:30",inicio:"09:10",tecnico:"JL",max:6200,d:.01,alcance:6200,
+    bd:{...s.bd,codigo:"EQ-0457",direccion:"Km 8 Carretera Norte, Managua",cliente:"Cliente de ejemplo S.A.",marca:"OHAUS",modelo:"PX6202",serie:"B000000001",ubicacion:"Laboratorio de control de calidad",lugar:"Recepción de materia prima",correo:"calidad@ejemplo.com",telefono:"2222 0000",encargado:"Juan Pérez"},
+    previas:["Sí","No","No","Sí","No","No","No","No","N/A","No"], comp:COMPONENTES.map((_,i)=>i===3?{tiene:"No",estado:""}:{tiene:"Sí",estado:"Bueno"}),
+    higro:"2", t0:24.5, h0:58, eccIni:[2066.67,2066.68,2066.67,2066.66,2066.67,null,null], errIni:[5,3100.01,6200.02], ajuste:"No",
+    sets:["AN-03","AN-05"], lin:[5,1550.01,3100.01,4650.02,6200.02,null,null,null], rep:[3100.01,3100.01,3100.02,3100.01,3100.01],
+    ecc:[2066.68,2066.67,2066.68,2066.66,2066.67,null,null],forma:"cuadrado",t1:25.1,h1:56,obs:"Servicio de ejemplo con datos ficticios."}); }
+  return s;
+}
+const LS="hc01-campo-v1";
+function cargarLocal(){ try{ return JSON.parse(localStorage.getItem(LS))||null; }catch(e){ return null; } }
+function guardarLocal(){ try{ localStorage.setItem(LS,JSON.stringify({actual:S,borradores:B})); $("#saveStatus").textContent="Guardado en este equipo · "+new Date().toLocaleTimeString("es-NI",{hour:"2-digit",minute:"2-digit"}); }catch(e){ $("#saveStatus").textContent="Sin almacenamiento local: no cierre la página"; } }
+let saved=cargarLocal(); let S=saved?.actual||nuevo(true); let B=saved?.borradores||{}; let paso=0;
+// Cada servicio se identifica internamente por uid (el N° de servicio 1, 2, 3… puede repetirse entre días o técnicos)
+if(!S.uid) S.uid=nuevoUid(); B=Object.fromEntries(Object.values(B).map(b=>{ if(!b.uid) b.uid=nuevoUid(); return [b.uid,b]; }));
+
+const $=q=>document.querySelector(q);
+function h(tag,attrs={},...kids){ const el=document.createElement(tag); for(const[k,v] of Object.entries(attrs)){ if(k==="on") for(const[ev,fn] of Object.entries(v)) el.addEventListener(ev,fn); else if(k==="cls") el.className=v; else if(v!==null&&v!==undefined&&v!==false) el.setAttribute(k,v===true?"":v);} kids.flat().forEach(c=>{ if(c===null||c===undefined||c===false) return; el.append(c.nodeType?c:document.createTextNode(c)); }); return el; }
+function cambio(){ guardarLocal(); pintarPasos(); }
+
+/* ---------- controles ---------- */
+function campoTexto(lbl,get,set,opts={}){ const i=h("input",{id:opts.id,type:opts.type||"text",value:get()??"",placeholder:opts.ph||"",on:{input:e=>{set(e.target.value);cambio(); if(opts.after) opts.after();}}}); return h("label",{cls:"f"},lbl,i,opts.hint?h("span",{cls:"hint"},opts.hint):null,opts.extra||null); }
+function campoSel(lbl,opciones,get,set,opts={}){ const sel=h("select",{id:opts.id,on:{change:e=>{set(e.target.value);cambio(); if(opts.after) opts.after();}}},h("option",{value:""},"Seleccione…"),...opciones.map(o=>{const [v,t]=Array.isArray(o)?o:[o,o]; return h("option",{value:v,selected:String(get())===String(v)},t);})); return h("label",{cls:"f"},lbl,sel); }
+// Indicaciones: se muestran con los mismos decimales que la resolución d (500,00 con d = 0,02)
+function decD(){ return S.d?dec(+(+S.d).toFixed(6)):undefined; }
+function fmtI(v,opts){ return opts.lect&&typeof v==="number"?fmt(v,decD()):fmt(v); }
+function inputNum(get,set,opts={}){
+  const i=h("input",{id:opts.id,cls:"num",inputmode:"decimal",autocomplete:"off",value:get()===null||get()===undefined?"":fmtI(get(),opts),placeholder:opts.ph||"",
+    on:{input:e=>{const n=parseNum(e.target.value); set(n===null||Number.isNaN(n)?null:n); validar(); cambio(); if(opts.after) opts.after();},
+        blur:e=>{const v=get(); if(v!==null&&v!==undefined) e.target.value=fmtI(v,opts);}}});
+  const msg=h("span",{cls:"hint"});
+  function validar(){ const raw=parseNum(i.value); let t="",cls="hint",bad=false;
+    if(Number.isNaN(raw)){t="Número no válido. Use coma o punto como decimal.";bad=true;}
+    else if(raw!==null&&opts.check){ const r=opts.check(raw); if(r){t=r.t;cls="hint "+(r.lvl||"bad");bad=r.lvl!=="warn";} }
+    msg.textContent=t; msg.className=cls; i.classList.toggle("err",bad); }
+  setTimeout(validar,0); i._msg=msg; return {i,msg};
+}
+function campoNum(lbl,get,set,opts={}){ const {i,msg}=inputNum(get,set,opts); return h("label",{cls:"f"},lbl,i,opts.hint?h("span",{cls:"hint"},opts.hint):null,msg); }
+function seg(opciones,get,set,after){ const w=h("div",{cls:"seg",role:"group"}); opciones.forEach(o=>{ const b=h("button",{type:"button",cls:get()===o?"on":"",on:{click:()=>{set(get()===o?"":o); [...w.children].forEach(x=>x.classList.toggle("on",x.textContent===get())); cambio(); if(after) after();}}},o); w.append(b);}); return w; }
+const multD = v => { const eq=calcEquipo(S); const d=S.d; if(!d) return null; const k=Math.round(v/d); return Math.abs(v-k*d)>d*1e-6 ? {t:"No es múltiplo de d = "+fmt(d)+" "+S.unidad+". Verifique la lectura.",lvl:"warn"} : null; };
+const unidad = () => S.unidad||"g";
+const fmtL = v => typeof v==="number" ? fmt(v, S.d?Math.min(6,dec(S.d)):undefined) : fmt(v);
+
+const dos = n => String(n).padStart(2,"0");
+function numCertificado(){ if(!S.tecnico||S.consec===null||S.consec===undefined) return null;
+  return "CM"+dos(S.fecha.d)+dos(S.fecha.m)+S.fecha.a+"-"+dos(S.consec)+S.tecnico+(S.tipo==="calibración N° mod."?(S.sufijo||""):""); }
+function sugerirConsecutivo(){ const hoyK=S.fecha.d+"/"+S.fecha.m+"/"+S.fecha.a; let n=0;
+  Object.values(B).forEach(b=>{ if(b.tecnico===S.tecnico&&b.fecha&&(b.fecha.d+"/"+b.fecha.m+"/"+b.fecha.a)===hoyK&&b.consec) n=Math.max(n,b.consec); }); return n+1; }
+/* ---------- base de clientes y equipos ---------- */
+const LSB="hc01-base-v1", LSP="hc01-base-pend";
+let BASE=(()=>{ try{ const b=JSON.parse(localStorage.getItem(LSB))||{}; return {clientes:b.clientes||[],contactos:b.contactos||[],equipos:b.equipos||[],actualizado:b.actualizado||null}; }catch(e){ return {clientes:[],contactos:[],equipos:[],actualizado:null}; } })();
+let PEND=(()=>{ try{ return JSON.parse(localStorage.getItem(LSP))||[]; }catch(e){ return []; } })();
+let vista="toma", baseSel={cliente:null,equipo:null,q:""}, baseMsg="";
+function guardarBaseLocal(){ try{ localStorage.setItem(LSB,JSON.stringify(BASE)); localStorage.setItem(LSP,JSON.stringify(PEND)); }catch(e){} }
+const COLS_EQ=["id","cliente_id","codigo","tipo","marca","modelo","serie","periodo","ubicacion","lugar","intervalo","max","d","unidad","alcance","ncargas","procedimiento","forma","c_min","c_mitad","c_max","c_exc_ini","c_p1","c_p2","c_p3","c_p4","c_p5","c_p6","c_p7","c_p8","c_rep","c_exc","contacto_id","ultima_cal","ultimo_cert","revisar"];
+const COLS_CLI=["id","nombre","direccion","notas"];
+const COLS_CON=["id","cliente_id","nombre","area","cargo","correo","telefono","activo"];
+function gas(fn,...args){
+  if(GRUN) return new Promise((ok,ko)=>google.script.run.withSuccessHandler(ok).withFailureHandler(ko)[fn](...args));
+  return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args})})
+    .then(r=>r.text()).then(t=>{ let j; try{ j=JSON.parse(t); }catch(e){ throw new Error("el servidor del laboratorio no respondió como se esperaba; avise al laboratorio"); } if(!j.ok) throw new Error(j.error||"Error del servidor"); return j.r; });
+}
+function cajaClave(){
+  if(!MODO_GOOGLE) return null;
+  const falta=!leerClave()||/c[oó]digo de acceso/i.test(baseMsg);
+  if(!falta) return null;
+  return h("div",{cls:"note",style:"display:grid;gap:8px"},h("b",{},"Escriba el código de acceso del laboratorio para descargar la base de clientes y equipos."),
+    h("div",{cls:"row"},h("input",{id:"f-clave-base",type:"password",autocomplete:"off",placeholder:"Código de acceso",style:"flex:1;min-width:160px"}),
+      h("button",{cls:"btn pri",type:"button",on:{click:()=>{ const v=(document.getElementById("f-clave-base")?.value||"").trim(); if(!v) return; try{ localStorage.setItem("hc01-clave",v); }catch(e){} baseMsg="Descargando base…"; render(); cargarBase(false); }}},"Guardar y descargar")));
+}
+async function cargarBase(silencioso){
+  try{
+    if(MODO_GOOGLE){ if(!leerClave()) throw new Error("falta el código de acceso"); const r=await gas("obtenerBase",leerClave()); BASE={contactos:[],...r}; }
+    else if(dbRef){ const [c,k,e]=await Promise.all([dbRef.collection("clientes").get(),dbRef.collection("contactos").get(),dbRef.collection("equipos").get()]);
+      BASE={clientes:c.docs.map(d=>d.data()),contactos:k.docs.map(d=>d.data()),equipos:e.docs.map(d=>d.data()),actualizado:new Date().toISOString()}; }
+    else throw new Error("sin conexión");
+    guardarBaseLocal(); baseMsg="Base actualizada "+new Date().toLocaleTimeString("es-NI",{hour:"2-digit",minute:"2-digit"});
+  }catch(e){ baseMsg=(silencioso&&!/c[oó]digo de acceso/i.test(e&&e.message||e))?baseMsg:"No se pudo actualizar la base ("+(e&&e.message||e)+"). Se usa la copia guardada en este equipo."; }
+  await subirPendientes(); if(vista==="base"||paso===0) render();
+}
+let errorSync="", subiendo=null;
+function subirPendientes(){ // una sola subida a la vez; los cambios nuevos esperan a la anterior
+  subiendo=(subiendo||Promise.resolve()).then(subirPendientes_).catch(()=>{}); return subiendo;
+}
+async function subirPendientes_(){
+  const lote=PEND.slice(), fallidos=[]; errorSync="";
+  for(const p of lote){ try{
+      if(MODO_GOOGLE) await gas("guardarRegistro",p.tipo,JSON.stringify(p.obj),leerClave(),p.tecnico||"");
+      else if(dbRef){ await dbRef.collection({cliente:"clientes",contacto:"contactos",equipo:"equipos"}[p.tipo]).doc(p.obj.id).set(p.obj);
+        await dbRef.collection("cambios").add({fecha:new Date().toISOString(),tipo:p.tipo,id:p.obj.id,tecnico:p.tecnico||""}); }
+      else throw new Error("sin conexión con la base");
+    }catch(e){ p.error=String(e&&e.message||e||"error"); errorSync=p.error; fallidos.push(p); } }
+  PEND=fallidos.concat(PEND.filter(p=>!lote.includes(p))); guardarBaseLocal();
+}
+function estadoSync(){ return PEND.length ? (PEND.length+" cambio(s) sin subir a la base"+(errorSync?" — motivo: "+errorSync:"")) : ""; }
+async function guardarReg(tipo,obj){
+  const lista={cliente:BASE.clientes,contacto:BASE.contactos,equipo:BASE.equipos}[tipo]; const i=lista.findIndex(x=>x.id===obj.id);
+  if(i>=0) lista[i]={...lista[i],...obj}; else lista.push(obj);
+  PEND.push({tipo,obj:i>=0?lista[i]:obj,tecnico:S.tecnico}); guardarBaseLocal();
+  await subirPendientes();
+  baseMsg = PEND.length ? "Guardado en este equipo, pero aún no en la base. "+estadoSync() : "Guardado en la base.";
+}
+function slug(t){ return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,""); }
+function contactosDe(cid,todos){ return BASE.contactos.filter(k=>k.cliente_id===cid&&(todos||String(k.activo||"Sí")!=="No")); }
+function etiquetaCon(k){ return k.nombre+(k.area?" · "+k.area:"")+(k.cargo?" ("+k.cargo+")":""); }
+function aplicarContacto(id){ const k=BASE.contactos.find(x=>x.id===id); S.contactoId=k?k.id:null; if(k) Object.assign(S.bd,{encargado:k.nombre,correo:k.correo||"",telefono:k.telefono||""}); }
+function equiposDe(cid){ return BASE.equipos.filter(e=>e.cliente_id===cid); }
+function etiquetaEq(e){ return [e.codigo,e.tipo,[e.marca,e.modelo].filter(Boolean).join(" "),"Serie "+(e.serie||"—"),e.lugar].filter(Boolean).join(" · "); }
+function aplicarEquipo(e){
+  const c=BASE.clientes.find(x=>x.id===e.cliente_id)||{};
+  Object.assign(S.bd,{cliente:c.nombre||S.bd.cliente,direccion:c.direccion||S.bd.direccion,
+    codigo:normCodigo(e.codigo),equipo:e.tipo||S.bd.equipo,marca:e.marca,modelo:e.modelo,serie:e.serie,periodo:parseNum(e.periodo)??0,ubicacion:e.ubicacion,lugar:e.lugar||S.bd.lugar,procedimiento:e.procedimiento||"PC-I"});
+  const n=v=>{ const x=parseNum(v); return Number.isNaN(x)?null:x; };
+  S.max=n(e.max); S.d=n(e.d); S.unidad=e.unidad||"g"; S.alcance=n(e.alcance)??S.max; { const k=[1,2,3,4,5,6,7,8].filter(i=>typeof n(e["c_p"+i])==="number").length; S.ncargas=String(k>=5&&k<=8?k:(e.ncargas||"5")); } // el N° de cargas sale de las cargas guardadas if(e.forma) S.forma=e.forma;
+  S.cargasEq={n:S.ncargas,lin:[1,2,3,4,5,6,7,8].map(k=>e["c_p"+k]),rep:e.c_rep,exc:e.c_exc,excIni:e.c_exc_ini,ini:[e.c_min,e.c_mitad,e.c_max]};
+  S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]};
+  S.equipoId=e.id; S.clienteId=e.cliente_id; if(e.contacto_id) aplicarContacto(e.contacto_id); cambio();
+}
+function equipoDesdeServicio(){
+  const eq=calcEquipo(S); const nv=v=>typeof v==="number"?v:"N/A";
+  const cid=S.clienteId||slug(S.bd.cliente).toUpperCase().slice(0,20)||"CLIENTE";
+  const id=S.equipoId||(slug(S.bd.codigo||"SC")+"_"+slug(S.bd.serie||Date.now()));
+  return {id,cliente_id:cid,codigo:normCodigo(S.bd.codigo),tipo:S.bd.equipo,marca:S.bd.marca,modelo:S.bd.modelo,serie:S.bd.serie,periodo:S.bd.periodo??0,ubicacion:S.bd.ubicacion,lugar:S.bd.lugar,
+    intervalo:S.max?`(0 a ${S.max})`:"",max:S.max,d:S.d,unidad:S.unidad,alcance:S.alcance,ncargas:Number(S.ncargas),procedimiento:S.bd.procedimiento||"PC-I",forma:S.forma||"",
+    c_min:nv(eq.iniciales[0]),c_mitad:nv(eq.iniciales[1]),c_max:nv(eq.iniciales[2]),c_exc_ini:nv(eq.excIni),
+    ...Object.fromEntries([0,1,2,3,4,5,6,7].map(i=>["c_p"+(i+1),nv(eq.cargas[i])])),c_rep:nv(eq.rep),c_exc:nv(eq.exc),
+    contacto_id:S.contactoId||""};
+}
+async function guardarEquipoDelServicio(){
+  if(!S.bd.cliente){ baseMsg="Escriba el cliente antes de guardar el equipo."; render(); return; }
+  if(!S.clienteId){ const cid=slug(S.bd.cliente).toUpperCase().slice(0,20); S.clienteId=cid;
+    if(!BASE.clientes.find(c=>c.id===cid)) await guardarReg("cliente",{id:cid,nombre:S.bd.cliente,direccion:S.bd.direccion,notas:""}); }
+  if(!S.contactoId && S.bd.encargado){ const k={id:S.clienteId+"-"+slug(S.bd.encargado).toUpperCase().slice(0,24),cliente_id:S.clienteId,nombre:S.bd.encargado,area:"",cargo:"",correo:S.bd.correo,telefono:S.bd.telefono,activo:"Sí"}; await guardarReg("contacto",k); S.contactoId=k.id; }
+  const e=equipoDesdeServicio(); S.equipoId=e.id; await guardarReg("equipo",e); cambio(); render();
+}
+function selectorBase(){
+  const clientes=BASE.clientes.slice().sort((a,b)=>String(a.nombre).localeCompare(b.nombre));
+  const eqs=S.clienteId?equiposDe(S.clienteId):[];
+  return h("div",{cls:"grp",style:"border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px"},
+    h("div",{cls:"row",style:"justify-content:space-between"},h("b",{},"Cliente y equipo desde la base"),h("span",{cls:"hint"},BASE.equipos.length+" equipos · "+(PEND.length?PEND.length+" cambio(s) por subir":(BASE.actualizado?"sincronizada":"sin descargar")))),
+    cajaClave(),
+    h("div",{cls:"grid"},
+      campoSel("Cliente",clientes.map(c=>[c.id,c.nombre]),()=>S.clienteId||"",v=>{ S.clienteId=v||null; S.equipoId=null; S.contactoId=null; const c=BASE.clientes.find(x=>x.id===v); if(c) Object.assign(S.bd,{cliente:c.nombre,direccion:c.direccion}); },{id:"f-bcli",after:()=>render()}),
+      S.clienteId?campoSel("Equipo",eqs.map(e=>[e.id,etiquetaEq(e)]),()=>S.equipoId||"",v=>{ const e=BASE.equipos.find(x=>x.id===v); if(e) aplicarEquipo(e); else S.equipoId=null; },{id:"f-beq",after:()=>render()}):null,
+      S.clienteId?campoSel("Solicitante (quien pidió el servicio)",contactosDe(S.clienteId).map(k=>[k.id,etiquetaCon(k)]).concat([["__nuevo","+ Nuevo contacto…"]]),()=>S.contactoId||"",v=>{ if(v==="__nuevo"){ S.nuevoContacto={nombre:"",area:"",cargo:"",correo:"",telefono:""}; } else { S.nuevoContacto=null; aplicarContacto(v); } },{id:"f-bcon",after:()=>render()}):null),
+    S.nuevoContacto?h("div",{cls:"grp",style:"border:1px dashed var(--line);border-radius:8px;padding:10px;display:grid;gap:8px"},h("b",{},"Nuevo contacto de "+S.bd.cliente),
+      h("div",{cls:"grid"},...[["nombre","Nombre"],["area","Área"],["cargo","Cargo"],["correo","Correo"],["telefono","Teléfono"]].map(([k,l])=>campoTexto(l,()=>S.nuevoContacto[k],v=>S.nuevoContacto[k]=v,{id:"f-nc-"+k}))),
+      h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ const n=S.nuevoContacto; if(!n.nombre.trim()){ baseMsg="Escriba el nombre del contacto."; render(); return; }
+          const k={id:S.clienteId+"-"+slug(n.nombre).toUpperCase().slice(0,24),cliente_id:S.clienteId,...n,activo:"Sí"}; await guardarReg("contacto",k); S.nuevoContacto=null; aplicarContacto(k.id); cambio(); render(); }}},"Guardar contacto"),
+        h("button",{cls:"btn",type:"button",on:{click:()=>{S.nuevoContacto=null;render();}}},"Cancelar"))):null,
+    S.equipoId&&(BASE.equipos.find(e=>e.id===S.equipoId)||{}).revisar?h("div",{cls:"note"},"Revisar en la base: "+BASE.equipos.find(e=>e.id===S.equipoId).revisar):null,
+    h("div",{cls:"row"},
+      h("button",{cls:"btn",type:"button",id:"btnGuardarEq",on:{click:guardarEquipoDelServicio}},S.equipoId?"Guardar cambios del equipo en la base":"Guardar este equipo nuevo en la base"),
+      h("button",{cls:"btn",type:"button",on:{click:()=>cargarBase(false)}},"Actualizar base")),
+    baseMsg?h("span",{cls:"hint"},baseMsg):null);
+}
+/* vista Clientes y equipos */
+// Sin código asignado por el cliente: N.I (no indica) o N/A (no aplica). Vacío o "SIN CÓDIGO" se escribe N.I.
+function normCodigo(v){ const t=String(v||"").trim(); if(/^n\s*\/\s*a$/i.test(t)) return "N/A"; return identificador(t)===""?"N.I":t; }
+function botonesSinCodigo(get,set,inputId){ return h("span",{cls:"row",style:"gap:6px;margin-top:4px"},...["N.I","N/A"].map(v=>h("button",{cls:"btn",type:"button",style:"padding:4px 10px;min-height:0",
+  on:{click:ev=>{ ev.preventDefault(); set(v); const i=document.getElementById(inputId); if(i) i.value=v; cambio(); }}},v)),h("span",{cls:"hint"},"si el cliente no asignó código")); }
+// Códigos o series que no identifican al equipo (N.I, N/A, SIN CÓDIGO…): no cuentan para buscar repetidos
+function identificador(v){ const t=String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  return ["","NI","NA","ND","SC","SS","SINCODIGO","SINSERIE","NOINDICA","NOTIENE","0"].includes(t)?"":t; }
+async function guardarEquipoBase(e,nuevo,otro,forzar){
+  if(nuevo){
+    const ser=identificador(e.serie), cod=identificador(e.codigo);
+    if(!identificador(e.codigo)&&!identificador(e.serie)){ baseMsg="Escriba el código o la serie del equipo. Si no tiene código, la serie es obligatoria."; render(); return; }
+    e.codigo=normCodigo(e.codigo);
+    const rep=BASE.equipos.find(x=>x.cliente_id===e.cliente_id&&((ser&&identificador(x.serie)===ser)||(cod&&identificador(x.codigo)===cod)));
+    if(rep&&!forzar){ baseSel.repetido={e,otro}; baseMsg="Ya existe un equipo de este cliente con "+(ser&&identificador(rep.serie)===ser?"la serie "+rep.serie:"el código "+rep.codigo)+" ("+[rep.codigo,rep.marca,rep.modelo].filter(Boolean).join(" ")+"). Si es otro equipo, toque «Es otro equipo, guardar igual»."; render(); return; }
+    let id=slug(cod?e.codigo:"SC")+"_"+slug(ser?e.serie:Date.now().toString(36)), n=2;
+    while(BASE.equipos.some(x=>x.id===id)) id=id.replace(/~\d+$/,"")+"~"+(n++);
+    e.id=id;
+  }
+  baseSel.repetido=null; baseSel.borrador=null; e.codigo=normCodigo(e.codigo);
+  await guardarReg("equipo",e);
+  if(otro){ // nuevo formulario con los datos que suelen repetirse; código, serie y modelo vacíos
+    const comunes=["tipo","marca","periodo","ubicacion","lugar","unidad","procedimiento","contacto_id"];
+    baseSel.molde=Object.fromEntries(comunes.filter(k=>e[k]!==undefined&&e[k]!=="").map(k=>[k,e[k]]));
+    baseSel.borrador=null; baseSel.equipo="__nuevo"; baseMsg=PEND.length?baseMsg:"Equipo "+(e.codigo||e.serie)+" guardado en la base. Complete el siguiente.";
+  } else { baseSel.equipo=e.id; baseMsg=PEND.length?baseMsg:"Equipo "+(e.codigo||e.serie)+" guardado en la base."; }
+  render(); window.scrollTo(0,0);
+}
+function vistaBase(){
+  const q=baseSel.q.toLowerCase();
+  const out=[h("h2",{},"Clientes y equipos"),h("p",{cls:"lead"},"Consulte, agregue o corrija clientes y equipos. Los cambios se guardan en la base del laboratorio y quedan registrados con el técnico y la fecha."),cajaClave(),
+    h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>cargarBase(false)}},"Actualizar base"),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:"__nuevo",equipo:null,q:""};render();}}},"Nuevo cliente"),h("span",{cls:"hint"},baseMsg||((BASE.actualizado?"Copia del "+new Date(BASE.actualizado).toLocaleString("es-NI")+(BASE.tecnico?" · código de "+BASE.tecnico:""):"Base aún no descargada")))),
+    PEND.length?h("div",{cls:"note"},h("b",{},estadoSync()),h("div",{cls:"row",style:"margin-top:6px"},h("button",{cls:"btn",type:"button",on:{click:async()=>{ baseMsg="Subiendo…"; render(); await subirPendientes(); baseMsg=PEND.length?"No se pudo subir. "+estadoSync():"Todo quedó guardado en la base."; render(); }}},"Reintentar subir"))):null];
+  if(baseSel.cliente==="__nuevo"||(baseSel.cliente&&!baseSel.equipo)){
+    const nuevo=baseSel.cliente==="__nuevo"; const c=nuevo?{id:"",nombre:"",direccion:"",notas:""}:{...BASE.clientes.find(x=>x.id===baseSel.cliente)};
+    const f=COLS_CLI.filter(k=>k!=="id"); const lbl={nombre:"Razón social",direccion:"Dirección",notas:"Notas"};
+    out.push(h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:null,equipo:null,q:baseSel.q};render();}}},"← Volver")),
+      h("h3",{},nuevo?"Nuevo cliente":c.nombre),
+      h("div",{cls:"grid"},...f.map(k=>campoTexto(lbl[k],()=>c[k],v=>c[k]=v,{id:"b-c-"+k}))),
+      h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ if(!c.nombre.trim()){baseMsg="Escriba la razón social.";render();return;} if(nuevo) c.id=slug(c.nombre).toUpperCase().slice(0,20); await guardarReg("cliente",c); baseSel.cliente=c.id; render(); }}},"Guardar cliente"),
+        nuevo?null:h("button",{cls:"btn",type:"button",on:{click:()=>{ baseSel.equipo="__nuevo"; baseSel.molde=null; baseSel.borrador=null; baseSel.repetido=null; baseMsg=""; render(); }}},"+ Agregar equipo")));
+    if(!nuevo){ const cons=contactosDe(c.id,true);
+      out.push(h("h3",{},"Contactos ("+cons.length+")"),h("div",{cls:"list"},...cons.map(k=>{ const ed=baseSel.contacto===k.id; const kk={...k};
+        return ed? h("div",{cls:"item",style:"display:grid;gap:8px"},h("div",{cls:"grid"},...[["nombre","Nombre"],["area","Área"],["cargo","Cargo"],["correo","Correo"],["telefono","Teléfono"]].map(([f,l])=>campoTexto(l,()=>kk[f],v=>kk[f]=v,{id:"b-k-"+f})),
+              campoSel("Activo",["Sí","No"],()=>kk.activo||"Sí",v=>kk.activo=v,{id:"b-k-activo"})),
+            h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ await guardarReg("contacto",kk); baseSel.contacto=null; render(); }}},"Guardar"),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.contacto=null;render();}}},"Cancelar")))
+          : h("div",{cls:"item"},h("div",{},h("b",{},k.nombre),(String(k.activo)==="No"?h("span",{cls:"pill"}," inactivo"):null),h("div",{cls:"hint"},[k.area,k.cargo,k.correo,k.telefono].filter(Boolean).join(" · ")||"Sin área ni datos de contacto")),
+              h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.contacto=k.id;render();}}},"Editar")); })),
+        h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:async()=>{ const id=c.id+"-NUEVO-"+Date.now().toString(36).toUpperCase(); await guardarReg("contacto",{id,cliente_id:c.id,nombre:"Nuevo contacto",area:"",cargo:"",correo:"",telefono:"",activo:"Sí"}); baseSel.contacto=id; render(); }}},"Agregar contacto")));
+      const eqs=equiposDe(c.id);
+      out.push(h("h3",{},eqs.length+" equipos"),h("div",{cls:"list"},...eqs.map(e=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},e.codigo)," · "+[e.tipo,e.marca,e.modelo].filter(Boolean).join(" "),h("div",{cls:"hint"},"Serie "+(e.serie||"—")+" · "+(e.lugar||"")+" · Max "+e.max+" "+e.unidad+(e.ultimo_cert?" · Últ. cert. "+e.ultimo_cert:"")),e.revisar?h("div",{cls:"hint warn"},"Revisar: "+e.revisar):null),
+        h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.equipo=e.id;render();}}},"Ver / editar"),h("button",{cls:"btn pri",type:"button",on:{click:()=>{ if(S.ejemplo||S.enviado){ if(S.id&&!S.ejemplo) B[S.uid]=S; S=nuevo(false);} aplicarEquipo(e); vista="toma"; paso=0; render(); window.scrollTo(0,0); }}},"Usar en servicio"))))),
+        h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:()=>{ baseSel.equipo="__nuevo"; baseSel.molde=null; baseSel.borrador=null; baseSel.repetido=null; baseMsg=""; render(); window.scrollTo(0,0); }}},"+ Agregar equipo"))); }
+  } else if(baseSel.equipo){
+    const nuevo=baseSel.equipo==="__nuevo"; if(nuevo&&!baseSel.borrador) baseSel.borrador={id:"",cliente_id:baseSel.cliente,codigo:"",tipo:"Balanza Electrónica",unidad:"g",ncargas:5,procedimiento:"PC-I",...(baseSel.molde||{})};
+    const e=nuevo?baseSel.borrador:{...BASE.equipos.find(x=>x.id===baseSel.equipo)};
+    const lbl={codigo:"Código",tipo:"Tipo de equipo",marca:"Marca",modelo:"Modelo",serie:"Serie",periodo:"Periodo (meses)",ubicacion:"Ubicación",lugar:"Lugar de calibración",intervalo:"Intervalo de medida",max:"Capacidad máxima",d:"Resolución (d)",unidad:"Unidad",alcance:"Alcance de trabajo",ncargas:"N° de cargas",forma:"Forma del receptor",
+      c_min:"Carga inicial mín",c_mitad:"Carga inicial ½ Max",c_max:"Carga inicial Max",c_exc_ini:"Excentricidad inicial",c_p1:"Linealidad 1",c_p2:"Linealidad 2",c_p3:"Linealidad 3",c_p4:"Linealidad 4",c_p5:"Linealidad 5",c_p6:"Linealidad 6",c_p7:"Linealidad 7",c_p8:"Linealidad 8",c_rep:"Repetibilidad",c_exc:"Excentricidad",contacto_id:"Último solicitante",revisar:"Observación (revisar)"};
+    const campo=k=> k==="tipo"?campoSel(lbl[k],TIPOS_EQ.concat(["Sistema de Pesaje de Tolva"]).filter((v,i,a)=>a.indexOf(v)===i),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
+      : k==="unidad"?campoSel(lbl[k],["g","kg"],()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
+      : k==="contacto_id"?campoSel(lbl[k],contactosDe(e.cliente_id,true).map(x=>[x.id,etiquetaCon(x)]),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
+      : k==="forma"?campoSel(lbl[k],Object.entries(FORMAS).map(([kk,f])=>[kk,f.nombre]),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
+      : k==="codigo"?campoTexto(lbl[k],()=>e[k],v=>e[k]=v,{id:"b-e-"+k,extra:botonesSinCodigo(()=>e[k],v=>e[k]=v,"b-e-"+k)})
+      : campoTexto(lbl[k],()=>e[k],v=>e[k]=v,{id:"b-e-"+k});
+    const g1=["codigo","tipo","marca","modelo","serie","periodo","ubicacion","lugar","intervalo","max","d","unidad","alcance","ncargas","forma"];
+    const g2=["c_min","c_mitad","c_max","c_exc_ini","c_p1","c_p2","c_p3","c_p4","c_p5","c_p6","c_p7","c_p8","c_rep","c_exc"];
+    out.push(h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.equipo=null;baseSel.borrador=null;baseSel.repetido=null;baseMsg="";render();}}},"← Volver al cliente")),
+      h("h3",{},nuevo?"Nuevo equipo":(e.codigo+" · "+[e.marca,e.modelo].filter(Boolean).join(" "))),
+      e.ultimo_cert?h("p",{cls:"hint"},"Última calibración "+e.ultima_cal+" · certificado "+e.ultimo_cert):null,
+      h("div",{cls:"grid"},...g1.map(campo)),h("h3",{},"Cargas de prueba del equipo ("+(e.unidad||"")+")"),h("p",{cls:"hint"},"Use N/A en los puntos que no aplican."),h("div",{cls:"grid"},...g2.map(campo)),
+      h("h3",{},"Contacto del equipo"),h("div",{cls:"grid"},...["contacto_id","revisar"].map(campo)),
+      h("div",{cls:"row"},
+        h("button",{cls:"btn pri",type:"button",on:{click:()=>guardarEquipoBase(e,nuevo,false)}},"Guardar equipo"),
+        nuevo?h("button",{cls:"btn",type:"button",on:{click:()=>guardarEquipoBase(e,nuevo,true)}},"Guardar y agregar otro"):null,
+        baseSel.repetido?h("button",{cls:"btn",type:"button",on:{click:()=>guardarEquipoBase(baseSel.repetido.e,true,baseSel.repetido.otro,true)}},"Es otro equipo, guardar igual"):null),
+      baseMsg?h("p",{cls:"hint"},baseMsg):null);
+  } else {
+    out.push(h("label",{cls:"f"},"Buscar cliente o equipo",h("input",{id:"b-q",value:baseSel.q,placeholder:"Nombre, código, serie, marca…",on:{input:e=>{baseSel.q=e.target.value;const pos=e.target.selectionStart;render();const i=document.getElementById("b-q");i.focus();i.setSelectionRange(pos,pos);}}})));
+    if(q){ const eqs=BASE.equipos.filter(e=>[e.codigo,e.serie,e.marca,e.modelo,e.lugar,e.tipo].join(" ").toLowerCase().includes(q)).slice(0,40);
+      out.push(h("div",{cls:"list"},...eqs.map(e=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},e.codigo)," · "+etiquetaEq(e).split(" · ").slice(1).join(" · "),h("div",{cls:"hint"},(BASE.clientes.find(c=>c.id===e.cliente_id)||{}).nombre||"")),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:e.cliente_id,equipo:e.id,q:""};render();}}},"Abrir")))));
+    }
+    const cls=BASE.clientes.filter(c=>!q||(String(c.nombre)+" "+String(c.notas||"")+" "+String(c.id)).toLowerCase().includes(q));
+    out.push(h("h3",{},"Clientes"),cls.length?h("div",{cls:"list"},...cls.map(c=>h("div",{cls:"item"},h("div",{},h("b",{},c.nombre),h("div",{cls:"hint"},equiposDe(c.id).length+" equipos · "+(c.direccion||""))),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:c.id,equipo:null,q:""};render();}}},"Abrir")))):h("p",{cls:"hint"},BASE.actualizado?"Sin resultados.":"Pulse «Actualizar base» con conexión para descargar los clientes."));
+  }
+  return out;
+}
+/* ---------- pasos ---------- */
+const V = {
+servicio(){
+  const eq=calcEquipo(S);
+  const calc=h("div",{cls:"calc",id:"calcEq"});
+  const pintaCalc=()=>{ const q=calcEquipo(S); calc.replaceChildren(
+    ...[["e",q.e!==null?fmt(q.e)+" "+unidad():"—"],["Clase",q.clase||"—"],["n = Max/e",q.n?fmt(Math.round(q.n),0):"—"],["Mín",q.min!==null?fmt(q.min)+" "+unidad():"—"],["Cargas",q.cargas.filter(x=>typeof x==="number").length||"—"]].map(([a,b])=>h("div",{},h("span",{},a),h("b",{},b))));
+    $("#avisosEq")?.replaceChildren(...q.avisos.map(t=>h("div",{cls:"note"},t))); };
+  setTimeout(pintaCalc,0);
+  return [h("h2",{},"Servicio y equipo"),
+    selectorBase(),
+    S.mismoLugarDe!==undefined&&!S.enviado&&!S.bd.serie?h("div",{cls:"note ok"},"Siguiente equipo en el mismo lugar"+(S.mismoLugarDe?" (después del servicio "+S.mismoLugarDe+")":"")+": el N° de servicio sigue la numeración ("+(S.id||"—")+"); se copiaron los datos del cliente, la hora de llegada ("+(S.llegada||"—")+"), el técnico, el termohigrómetro y las pesas. El N° PG-VI-F3 se propone igual al anterior: cámbielo si este equipo tiene otro. La temperatura y la humedad se registran de nuevo."):null,
+    S.ejemplo?h("div",{cls:"note"},"Está viendo un servicio de ejemplo con datos ficticios. Use «Nuevo servicio» en el paso Revisar y enviar para empezar uno real."):null,
+    h("div",{cls:"grid"},
+      campoTexto("N° de servicio",()=>S.id,v=>{S.id=v.trim().toUpperCase().replace(/\s+/g,"");$("#svcTag").textContent=S.id||"Sin servicio";},{id:"f-id",ph:"Ej. 1",
+        hint:"Número que asigna el técnico según el orden que recibe los equipos para la calibración."}),
+      campoSel("Tipo de servicio",TIPO_SERV,()=>S.tipo,v=>S.tipo=v,{id:"f-tipo",after:()=>render()}),
+      campoSel("Técnico",TECNICOS,()=>S.tecnico,v=>{S.tecnico=v; if(S.consec===null&&v) S.consec=sugerirConsecutivo();},{id:"f-tec",after:()=>render()}),
+      h("label",{cls:"f"},"Fecha",h("input",{id:"f-fecha",value:`${String(S.fecha.d).padStart(2,"0")}/${String(S.fecha.m).padStart(2,"0")}/${S.fecha.a}`,readonly:true}),h("span",{cls:"hint"},"Se toma de la tablet"))),
+    S.tipo==="calibración N° mod."?campoTexto("Motivo de la corrección",()=>S.motivo,v=>S.motivo=v,{id:"f-motivo"}):null,
+    h("h3",{},"Registro y certificado"),
+    h("div",{cls:"grid"},
+      campoTexto("N° de registro PG-VI-F3 (Ejecución de servicios)",()=>S.pgvi,v=>S.pgvi=v.trim(),{id:"f-pgvi"}),
+      campoNum("Consecutivo de calibración del día",()=>S.consec,v=>S.consec=v===null?null:Math.round(v),{id:"f-consec",hint:"Calibraciones del técnico en el día: 1, 2, 3…",after:()=>{const e=$("#certPrev"); if(e) e.textContent=numCertificado()||"—";}}),
+      S.tipo==="calibración N° mod."?campoTexto("Complemento del N° (corrección)",()=>S.sufijo,v=>S.sufijo=v.trim(),{id:"f-suf",after:()=>{const e=$("#certPrev"); if(e) e.textContent=numCertificado()||"—";}}):null),
+    h("div",{cls:"calc"},h("div",{},h("span",{},"N° de certificado"),h("b",{id:"certPrev"},numCertificado()||"—"))),
+    h("h3",{},"Cliente"),
+    h("div",{cls:"grid"},
+      campoTexto("Cliente",()=>S.bd.cliente,v=>S.bd.cliente=v,{id:"f-cli"}),
+      campoTexto("Solicitante / encargado",()=>S.bd.encargado,v=>S.bd.encargado=v,{id:"f-enc"}),
+      campoTexto("Dirección",()=>S.bd.direccion,v=>S.bd.direccion=v,{id:"f-dir"}),
+      campoTexto("Correo electrónico",()=>S.bd.correo,v=>S.bd.correo=v,{id:"f-mail",type:"email"}),
+      campoTexto("Teléfono",()=>S.bd.telefono,v=>S.bd.telefono=v,{id:"f-tel",type:"tel"}),
+      campoTexto("Ubicación del equipo",()=>S.bd.ubicacion,v=>S.bd.ubicacion=v,{id:"f-ubi"}),
+      campoTexto("Lugar de calibración",()=>S.bd.lugar,v=>S.bd.lugar=v,{id:"f-lugar",ph:"Ej. Recepción de materia prima",hint:"Área específica donde se calibra el equipo"})),
+    h("h3",{},"Equipo (datos de placa)"),
+    h("div",{cls:"grid"},
+      campoSel("Tipo de equipo",TIPOS_EQ,()=>S.bd.equipo,v=>S.bd.equipo=v,{id:"f-eq"}),
+      campoTexto("Marca",()=>S.bd.marca,v=>S.bd.marca=v,{id:"f-marca"}),
+      campoTexto("Modelo",()=>S.bd.modelo,v=>S.bd.modelo=v,{id:"f-modelo"}),
+      campoTexto("Serie",()=>S.bd.serie,v=>S.bd.serie=v,{id:"f-serie"}),
+      campoTexto("Código del equipo",()=>S.bd.codigo,v=>S.bd.codigo=v,{id:"f-cod",extra:botonesSinCodigo(()=>S.bd.codigo,v=>S.bd.codigo=v,"f-cod")}),
+      campoNum("Periodo de calibración (meses)",()=>S.bd.periodo,v=>S.bd.periodo=v,{id:"f-per",hint:"0 = a definir por el cliente"}),
+      campoSel("Unidad",["g","kg"],()=>S.unidad,v=>S.unidad=v,{id:"f-u",after:pintaCalc}),
+      campoNum("Capacidad máxima (Max)",()=>S.max,v=>S.max=v,{id:"f-max",after:pintaCalc}),
+      campoNum("Resolución (d)",()=>S.d,v=>S.d=v,{id:"f-d",after:pintaCalc}),
+      campoNum("Alcance de trabajo",()=>S.alcance,v=>S.alcance=v,{id:"f-alc",after:pintaCalc,check:v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:null}),
+      campoSel("N° de cargas de linealidad",["5","6","7","8"],()=>S.ncargas,v=>{ S.ncargas=v; if(S.cm) S.cm.lin=Array(8).fill(null); },{id:"f-nc",after:pintaCalc})),
+    h("h3",{},"Calculado como en la plantilla"), calc, h("div",{id:"avisosEq",cls:"list"})];
+},
+previas(){
+  return [h("h2",{},"Condiciones previas"),
+    h("div",{}, ...PREGUNTAS.map((q,i)=>h("div",{cls:"q"},h("p",{},q),seg(["Sí","No","N/A"],()=>S.previas[i],v=>S.previas[i]=v)))),
+    h("h3",{},"Identificación del equipo"),
+    h("p",{cls:"lead"},"Marque si el componente existe y, si existe, su estado."),
+    h("div",{}, ...COMPONENTES.map((c,i)=>h("div",{cls:"q"},h("p",{},c),h("div",{cls:"row"},
+      seg(["Sí","No"],()=>S.comp[i].tiene,v=>{S.comp[i].tiene=v; if(v!=="Sí") S.comp[i].estado="";},()=>render()),
+      S.comp[i].tiene==="Sí"?seg(["Bueno","Regular","Malo"],()=>S.comp[i].estado,v=>S.comp[i].estado=v):null))))];
+},
+ambiente(){
+  const ahora=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
+  const mins=()=>{ if(!S.llegada||!S.inicio) return null; const [a,b]=S.llegada.split(":").map(Number),[c,d]=S.inicio.split(":").map(Number); return (c*60+d)-(a*60+b); };
+  const m=mins();
+  return [h("h2",{},"Condiciones ambientales iniciales"),
+    h("div",{cls:"row"},
+      h("button",{cls:"btn",type:"button",on:{click:()=>{S.llegada=ahora();cambio();render();}}},S.llegada?"Llegada "+S.llegada+" · actualizar":"Registrar hora de llegada"),
+      h("button",{cls:"btn pri",type:"button",disabled:!S.llegada,on:{click:()=>{S.inicio=ahora();cambio();render();}}},S.inicio?"Inicio "+S.inicio+" · actualizar":"Iniciar calibración")),
+    m!==null?h("div",{cls:"note"+(m>=30?" ok":"")},m>=30?`Tiempo de ambientación: ${m} min.`:`Tiempo de ambientación: ${m} min. Es menor a 30 minutos.`):h("p",{cls:"lead"},"La hora de llegada inicia el tiempo de ambientación. El inicio de calibración se registra al empezar las pruebas."),
+    h("div",{cls:"grid"},
+      campoSel("Termohigrómetro",HIGRO.map(n=>[String(n),"AZN-"+String(n).padStart(2,"0")]),()=>S.higro,v=>S.higro=v,{id:"f-hig"}),
+      campoNum("Temperatura inicial (°C)",()=>S.t0,v=>S.t0=v,{id:"f-t0",check:v=>v<15||v>40?{t:"Fuera de 15 °C a 40 °C (antes de corrección).",lvl:"warn"}:null}),
+      campoNum("Humedad inicial (%)",()=>S.h0,v=>S.h0=v,{id:"f-h0",check:v=>v<30||v>90?{t:"Fuera de 30 % a 90 % (antes de corrección).",lvl:"warn"}:null})),
+    h("p",{cls:"hint"},"La corrección del termohigrómetro la aplica la plantilla HC-01 al recibir los datos.")];
+},
+iniciales(){
+  const eq=calcEquipo(S); const u=unidad();
+  if(!eq.iniciales.length) return [h("h2",{},"Pruebas iniciales"),h("div",{cls:"note"},"Complete Max, d, alcance y N° de cargas en el paso Servicio.")];
+  function actIni(){ let fuera=false, alguno=false; eq.iniciales.forEach((L,i)=>{ const tr=document.getElementById("ir"+i); const v=S.errIni[i]; const M=emt(L,eq); const E=v===null?null:r6(v-L);
+      if(E!==null){alguno=true; if(Math.abs(E)>M) fuera=true;}
+      if(tr){ tr.children[3].textContent=E===null?"—":fmt(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); } });
+    const n=document.getElementById("iniNota"); if(n) n.replaceChildren(alguno?h("div",{cls:"note"+(fuera?" bad":" ok")},fuera?"Hay errores fuera del EMT. Se sugiere ajuste.":"Errores dentro del EMT."," Criterio provisional: EMT en servicio. Pendiente de confirmar por el laboratorio."):""); }
+  setTimeout(actIni,0);
+  const autoriza = S.previas[8]==="Sí"||S.previas[6]==="Sí";
+  const pos=[1,2,3,4,5,6,7];
+  return [h("h2",{},"Pruebas iniciales antes del ajuste"),
+    h("h3",{},"Excentricidad inicial · carga "+fmtL(eq.excIni)+" "+u),
+    FORMAS[S.forma]?.sinExc?h("p",{cls:"hint"},"No aplica para "+FORMAS[S.forma].nombre.toLowerCase()+"."):FORMAS[S.forma]?h("div",{cls:"grid"},...FORMAS[S.forma].pos.map((_,i)=>campoNum("Posición "+(i+1),()=>S.eccIni[i],v=>S.eccIni[i]=v,{id:"f-ei"+i,lect:true,check:multD,lect:true}))):h("div",{cls:"note"},"Seleccione primero la forma del receptor en el paso Excentricidad."),
+    h("h3",{},"Errores de indicación"),
+    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Punto"),h("th",{},"Carga ("+u+")"),h("th",{},"Indicación"),h("th",{},"Error"),h("th",{cls:"hide-sm"},"EMT ±"),h("th",{},""))),
+      h("tbody",{},...eq.iniciales.map((L,i)=>{ const {i:inp,msg}=inputNum(()=>S.errIni[i],v=>S.errIni[i]=v,{id:"f-ie"+i,check:multD,lect:true,after:actIni}); const M=emt(L,eq);
+        return h("tr",{id:"ir"+i},h("td",{cls:"l"},["Mín","½ Max","Max"][i]),h("td",{cls:"mono"},fmtL(L)),h("td",{},inp,msg),h("td",{cls:"mono"}),h("td",{cls:"mono hide-sm"},fmt(M)),h("td",{})); })))),
+    h("div",{id:"iniNota"}),
+    h("div",{cls:"q"},h("p",{},h("b",{},"¿Se realizó ajuste?")),seg(["Sí","No"],()=>S.ajuste,v=>S.ajuste=v,()=>render())),
+    S.ajuste==="Sí"&&!autoriza?h("div",{cls:"note bad"},"En Condiciones previas no consta la autorización del cliente para el ajuste (preguntas 7 y 9)."):null,
+    S.ajuste==="Sí"?h("div",{cls:"grid"},
+      campoNum("Valor de carga de ajuste ("+u+")",()=>S.cargaAjuste,v=>S.cargaAjuste=v,{id:"f-caj",check:v=>S.max&&v>S.max?{t:"Mayor que Max."}:null}),
+      ...eq.iniciales.map((L,i)=>campoNum("Después de ajuste · "+["Mín","½ Max","Max"][i]+" ("+fmtL(L)+")",()=>S.postAjuste[i],v=>S.postAjuste[i]=v,{id:"f-pa"+i,check:multD,lect:true}))):null,
+    S.ajuste==="No"?h("p",{cls:"hint"},"Se registrará N/A en los resultados después de ajuste."):null];
+},
+pesas(){
+  const eq=calcEquipo(S); const u=unidad();
+  const grupos={"Juegos AN / ANC":k=>/^ANC?-|^ANP/.test(k),"Juegos BN de 1 a 5 kg (BN-12 a BN-15)":k=>/^BN-1[2-5]$/.test(k),"BN 5 kg":k=>/^BN-(0\d|1[01])$/.test(k)||/^BNC/.test(k),"CN 10 kg":k=>/^CNC?-/.test(k),"DN 20 kg":k=>/^DNC?-/.test(k),"G 500 kg":k=>/^G-/.test(k),"H 1 000 kg":k=>/^H-/.test(k)};
+  const keys=Object.keys(INV);
+  if(!S.cm) S.cm={lin:Array(8).fill(null),rep:null,exc:null,ini:[null,null,null]};
+  const filas=[]; eq.sug.cargas.forEach((c,i)=>{ if(typeof c==="number") filas.push(["Linealidad "+(i+1),c,()=>S.cm.lin[i],v=>S.cm.lin[i]=v]); });
+  filas.push(["Repetibilidad",eq.sug.rep,()=>S.cm.rep,v=>S.cm.rep=v]);
+  if(!FORMAS[S.forma]?.sinExc){ filas.push(["Excentricidad",eq.sug.exc,()=>S.cm.exc,v=>S.cm.exc=v]); filas.push(["Excentricidad inicial",eq.sug.excIni,()=>S.cm.excIni,v=>S.cm.excIni=v]); }
+  ["Inicial · Mín","Inicial · ½ Max","Inicial · Max"].forEach((t,i)=>filas.push([t,eq.sug.iniciales[i],()=>S.cm.ini[i],v=>S.cm.ini[i]=v]));
+  const tablaCargas = eq.sug.cargas.length ? h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Prueba"),h("th",{},(S.cargasEq?"Del equipo":"Sugerida")+" ("+u+")"),h("th",{},"Carga a aplicar ("+u+")"))),
+    h("tbody",{},...filas.map(([t,sug,get,set],k)=>{ const {i:inp,msg}=inputNum(()=>get()??sug,v=>set(v===null||v===sug?null:v),{id:"f-cg"+k,check:v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:(v<=0?{t:"Debe ser mayor que 0."}:null),after:()=>{ const t2=document.getElementById("compTabla"); if(t2) t2.replaceWith(tablaComp()); }});
+      return h("tr",{},h("td",{cls:"l"},t),h("td",{cls:"mono"},fmtL(sug)),h("td",{},inp,msg)); })))) : null;
+  return [h("h2",{},"Cargas y pesas patrón"),
+    h("h3",{},"Cargas de prueba"),
+    h("p",{cls:"lead"},S.cargasEq?"Cargas registradas para este equipo en la base. Ajústelas a las pesas disponibles; la HC-01 usará las cargas que queden aquí.":"La app propone las cargas según Max y el alcance de trabajo. Ajústelas a las pesas disponibles; la HC-01 usará las cargas que queden aquí."),
+    tablaCargas,
+    h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]};cambio();render();}}},S.cargasEq?"Restablecer cargas del equipo":"Restablecer cargas sugeridas")),
+    h("h3",{},"Pesas que lleva al servicio"),
+    h("p",{cls:"lead"},"Marque los juegos y pesas que lleva al servicio. La app arma cada carga de linealidad con la menor cantidad de piezas y lo registra en la hoja Patrones."),
+    h("div",{cls:"list"},...Object.entries(grupos).map(([g,f])=>{ const ks=keys.filter(f); const n=ks.filter(k=>S.sets.includes(k)).length;
+      return h("details",{cls:"grp",open:n>0||g.startsWith("Juegos AN")},h("summary",{},g+(n?` · ${n} seleccionado${n>1?"s":""}`:"")),
+        h("div",{cls:"chips"},...ks.map(k=>h("button",{type:"button",cls:S.sets.includes(k)?"on":"",title:(INV[k].length>1?INV[k].length+" piezas, hasta "+fmtPeso(Math.max(...INV[k])):fmtPeso(INV[k][0])),
+          on:{click:()=>{S.sets=S.sets.includes(k)?S.sets.filter(x=>x!==k):[...S.sets,k];cambio();render();}}},k)))); })),
+    h("h3",{},"Composición de cargas de linealidad"),
+
+    tablaComp()];
+  function tablaComp(){ const q=calcEquipo(S);
+    if(!q.cargas.length) return h("div",{cls:"note",id:"compTabla"},"Complete los datos del equipo para calcular las cargas.");
+    return h("div",{cls:"tbl",id:"compTabla"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Carga"),h("th",{},"Nominal ("+u+")"),h("th",{cls:"l"},"Pesas"),h("th",{},""))),
+      h("tbody",{},...q.cargas.map((c,i)=>{ if(typeof c!=="number") return null; const cp=componer(u==="kg"?c*1000:c,S.sets);
+        return h("tr",{},h("td",{cls:"l"},String(i+1)),h("td",{cls:"mono"},fmtL(c)),h("td",{cls:"l comp"},cp?resumenPiezas(cp):"—"),h("td",{},h("span",{cls:"pill "+(cp?"ok":"bad")},cp?"Completa":"No alcanza"))); })))); }
+},
+linealidad(){
+  const eq=calcEquipo(S); const u=unidad();
+  if(!eq.cargas.length) return [h("h2",{},"Linealidad"),h("div",{cls:"note"},"Complete los datos del equipo en el paso Servicio.")];
+  return [h("h2",{},"Errores de indicación (linealidad)"),h("p",{cls:"lead"},"Indicación ascendente para cada carga."),
+    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Carga"),h("th",{},"Aplicada ("+u+")"),h("th",{},"Indicación"),h("th",{},"Error"),h("th",{cls:"hide-sm"},"EMT ±"),h("th",{},""))),
+      h("tbody",{},...eq.cargas.map((c,i)=>{ if(typeof c!=="number") return null; const {i:inp,msg}=inputNum(()=>S.lin[i],v=>S.lin[i]=v,{id:"f-l"+i,check:multD,lect:true,after:()=>actualizarFila(i)});
+        const tr=h("tr",{id:"lr"+i},h("td",{cls:"l"},String(i+1)),h("td",{cls:"mono"},fmtL(c)),h("td",{},inp,msg),h("td",{cls:"mono"}),h("td",{cls:"mono hide-sm"},fmt(emt(c,eq))),h("td",{}));
+        setTimeout(()=>actualizarFila(i),0); return tr; }))))];
+  function actualizarFila(i){ const tr=document.getElementById("lr"+i); if(!tr) return; const c=eq.cargas[i], v=S.lin[i], M=emt(c,eq); const E=v===null?null:r6(v-c);
+    tr.children[3].textContent=E===null?"—":fmt(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); }
+},
+repetibilidad(){
+  const eq=calcEquipo(S); const u=unidad();
+  const v=S.rep.filter(x=>x!==null); const prom=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
+  const sd=v.length>1?Math.sqrt(v.reduce((a,b)=>a+(b-prom)**2,0)/(v.length-1)):null; const dif=v.length?Math.max(...v)-Math.min(...v):null;
+  return [h("h2",{},"Repetibilidad"),h("p",{cls:"lead"},"Cinco lecturas con la misma carga, retirándola entre cada lectura."),
+    h("div",{cls:"calc"},h("div",{},h("span",{},"Carga"),h("b",{},eq.rep?fmtL(eq.rep)+" "+u:"—")),h("div",{},h("span",{},"Desv. estándar"),h("b",{},sd===null?"—":fmt(r6(sd)))),h("div",{},h("span",{},"Diferencia máx."),h("b",{},dif===null?"—":fmt(r6(dif))))),
+    h("div",{cls:"grid"},...S.rep.map((_,i)=>campoNum((i+1)+"ª lectura",()=>S.rep[i],x=>S.rep[i]=x,{id:"f-r"+i,check:multD,lect:true})))];
+},
+excentricidad(){
+  const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma]; const n=F?F.pos.length:0;
+  const picker=h("div",{cls:"formas"},...Object.entries(FORMAS).map(([k,f])=>h("button",{type:"button",cls:"forma"+(S.forma===k?" on":""),"aria-pressed":S.forma===k,on:{click:()=>{S.forma=k;cambio();render();}}},formaSVG(k,null),h("span",{},f.nombre),h("small",{},f.sinExc?"No aplica excentricidad":f.pos.length+" posiciones"))));
+  if(!F) return [h("h2",{},"Excentricidad"),h("p",{cls:"lead"},"Seleccione la forma del receptor de carga. Se marcará en la HC-01 y define las posiciones de la prueba."),picker];
+  return [h("h2",{},"Excentricidad"),
+    h("details",{cls:"grp"},h("summary",{},"Forma del receptor: "+F.nombre+" · cambiar"),picker),
+    F.sinExc?null:h("p",{cls:"lead"},"Carga de "+(eq.exc?fmtL(eq.exc)+" "+u:"—")+". Coloque la carga en cada posición según el diagrama."),
+    F.nota?h("div",{cls:"note"},F.nota):null,
+    F.sinExc?h("div",{cls:"note ok"},"Para "+F.nombre.toLowerCase()+" no se aplica prueba de excentricidad. En la HC-01 se registrará N/A."):null,
+    F.sinExc?null:h("div",{cls:"ecc"},
+      h("div",{cls:"plate",id:"plateBig"},formaSVG(S.forma,S.ecc)),
+      h("div",{cls:"grid"},...F.pos.map((_,i)=>campoNum("Posición "+(i+1),()=>S.ecc[i],v=>S.ecc[i]=v,{id:"f-x"+i,lect:true,check:v=>{ const M=emt(eq.exc,eq); if(eq.exc&&M&&Math.abs(v-eq.exc)>M) return {t:"Diferencia "+fmt(r6(v-eq.exc))+" mayor que EMT ± "+fmt(M)+".",lvl:"warn"}; return multD(v);},
+        after:()=>{ document.querySelector('#plateBig [data-p="'+(i+1)+'"]')?.classList.toggle("filled",S.ecc[i]!==null); }}))))];
+},
+cierre(){
+  return [h("h2",{},"Condiciones finales y observaciones"),
+    h("div",{cls:"grid"},
+      campoNum("Temperatura final (°C)",()=>S.t1,v=>S.t1=v,{id:"f-t1",check:v=>{ if(v<15||v>40) return {t:"Fuera de 15 °C a 40 °C.",lvl:"warn"}; if(S.t0!==null&&Math.abs(v-S.t0)>=5) return {t:"Variación de "+fmt(r6(Math.abs(v-S.t0)))+" °C durante la calibración.",lvl:"warn"}; return null;}}),
+      campoNum("Humedad final (%)",()=>S.h1,v=>S.h1=v,{id:"f-h1",check:v=>v<30||v>90?{t:"Fuera de 30 % a 90 %.",lvl:"warn"}:null})),
+    h("label",{cls:"f"},"Observaciones",h("textarea",{id:"f-obs",placeholder:"Escriba N/A si no hay observaciones",on:{input:e=>{S.obs=e.target.value;cambio();}}},S.obs))];
+},
+envio(){
+  const faltan=pendientes(); const ok=!faltan.length;
+  const cap=construirCaptura();
+  const lista=Object.values(B).filter(b=>b.id&&b.id!==S.id);
+  return [h("h2",{},"Revisar y enviar"),
+    ok?h("div",{cls:"note ok"},"La captura está completa. Al enviarla, el laboratorio genera la HC-01 automáticamente."):h("div",{cls:"note bad"},h("b",{},faltan.length+" pendiente"+(faltan.length>1?"s":"")+":"),h("ul",{},...faltan.map(([p,t])=>h("li",{},h("a",{href:"#",on:{click:e=>{e.preventDefault();paso=p;render();}}},PASOS[p][1]),": "+t)))),
+    S.ejemplo?h("div",{cls:"note"},"Este es el servicio de ejemplo y no se envía tal cual. Para probar el envío, conviértalo en una prueba: se le asigna un N° de servicio PRUEBA y se puede enviar.",
+      h("div",{cls:"row",style:"margin-top:8px"},h("button",{cls:"btn sig",type:"button",id:"btnPrueba",on:{click:()=>{ const d=new Date(); S.ejemplo=false; S.id="PRUEBA-"+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+"-"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0"); S.bd.cliente="PRUEBA – "+S.bd.cliente; S.obs="Captura de PRUEBA desde la app – no válida para emisión."; cambio(); render(); }}},"Convertir en servicio de prueba"))):null,
+    MODO_GOOGLE?h("div",{cls:"grid"},h("label",{cls:"f"},"Código de acceso del laboratorio",h("input",{id:"f-clave",type:"password",value:leerClave(),autocomplete:"off"}),h("span",{cls:"hint"},"Lo entrega el laboratorio. Se recuerda en este equipo."))):null,
+    h("div",{cls:"row"},
+      h("button",{cls:"btn pri",type:"button",id:"btnEnviar",disabled:!ok||S.ejemplo,on:{click:enviar}},S.enviado?"Reenviar":"Enviar al laboratorio"),
+      h("button",{cls:"btn",type:"button",id:"btnDesc",on:{click:descargar}},"Descargar respaldo (JSON)"),
+      h("button",{cls:"btn",type:"button",id:"btnMismoLugar",on:{click:siguienteMismoLugar}},"Siguiente equipo en el mismo lugar"),
+      h("button",{cls:"btn",type:"button",on:{click:()=>{ if(S.id&&!S.ejemplo) B[S.uid]=S; S=nuevo(false); paso=0; cambio(); render(); }}},"Nuevo servicio")),
+    h("details",{cls:"grp"},h("summary",{},"Pruebas: reutilizar datos sin volver a digitarlos"),
+      h("p",{cls:"hint"},"«Duplicar» crea una copia de este servicio con todas sus lecturas, con el consecutivo del día +1 (otro N° de certificado). «Cargar ejemplo» abre el servicio de ejemplo completo; luego toque «Convertir en servicio de prueba»."),
+      h("div",{cls:"row"},
+        h("button",{cls:"btn",type:"button",id:"btnDuplicar",on:{click:duplicarServicio}},"Duplicar este servicio"),
+        h("button",{cls:"btn",type:"button",id:"btnEjemplo",on:{click:()=>{ if(S.id&&!S.ejemplo) B[S.uid]=S; S=nuevo(true); paso=PASOS.length-1; cambio(); render(); window.scrollTo(0,0); }}},"Cargar ejemplo"))),
+    h("div",{id:"envioMsg"}),
+    S.enviado?h("div",{cls:"note ok"},"Enviado el "+new Date(S.enviado).toLocaleString("es-NI")):null,
+    S.enCola&&!S.enviado?h("div",{cls:"note"},"En cola de envío: se enviará al recuperar la señal."+((leerCola().find(x=>x.cap.uid===S.uid)||{}).error?" Último error: "+leerCola().find(x=>x.cap.uid===S.uid).error:"")):null,
+    leerCola().length?h("p",{cls:"hint"},leerCola().length+" captura(s) esperando señal para enviarse."):null,
+    lista.length?h("div",{cls:"list"},h("h3",{},"Otros servicios en este equipo"),...lista.map(b=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},b.id)," · ",[b.bd.codigo,b.bd.serie&&("serie "+b.bd.serie)].filter(Boolean).join(" · ")||"sin equipo"," · ",b.bd.cliente||"sin cliente",h("div",{cls:"hint"},b.enviado?"Enviado":(b.enCola?"En cola de envío":"Borrador"))),h("button",{cls:"btn",type:"button",on:{click:()=>{ if(S.id&&!S.ejemplo) B[S.uid]=S; S=b; delete B[b.uid]; paso=0; cambio(); render();}}},"Abrir")))):null,
+    h("div",{id:"enviadas"}),
+    h("details",{cls:"grp"},h("summary",{},"Ver datos que recibe la plantilla"),h("pre",{cls:"json"},JSON.stringify(cap,null,1)))];
+}};
+function duplicarServicio(){
+  if(S.id&&!S.ejemplo) B[S.uid]=S;
+  const n=JSON.parse(JSON.stringify(S));
+  Object.assign(n,{id:/^\d+$/.test(S.id||"")?String(+S.id+1):S.id,uid:nuevoUid(),enviado:null,enCola:false,hc:null,ejemplo:false,consec:(S.consec>0?S.consec:0)+1,fecha:hoy()});
+  delete n.mismoLugarDe;
+  S=n; cambio(); render(); window.scrollTo(0,0);
+  const m=document.getElementById("envioMsg"); if(m) m.replaceChildren(h("div",{cls:"note ok"},"Copia lista con consecutivo "+String(S.consec).padStart(2,"0")+". Cambie lo que quiera probar y envíe."));
+}
+function siguienteMismoLugar(){
+  const a=S; if(a.id&&!a.ejemplo) B[a.uid]=a;
+  const n=nuevo(false);
+  const cli=["cliente","direccion","encargado","correo","telefono","ubicacion","lugar"];
+  cli.forEach(k=>n.bd[k]=a.bd[k]||"");
+  n.llegada=a.llegada; n.pgvi=a.pgvi||""; n.tecnico=a.tecnico; n.higro=a.higro; n.sets=(a.sets||[]).slice(); n.tipo=a.tipo;
+  n.id=/^\d+$/.test(a.id||"")?String(+a.id+1):""; n.clienteId=a.clienteId||null; n.contactoId=a.contactoId||null; n.bd.encargado=a.bd.encargado; n.bd.correo=a.bd.correo; n.bd.telefono=a.bd.telefono; n.fecha=hoy(); n.consec=(a.consec>0?a.consec:0)+1; n.mismoLugarDe=a.id||"";
+  S=n; paso=0; cambio(); render(); window.scrollTo(0,0);
+}
+const fmtPeso = g => g>=1000 ? fmt(g/1000)+" kg" : fmt(g)+" g";
+function resumenPiezas(ps){ const m=new Map(); ps.forEach(p=>{const k=p.set; if(!m.has(k))m.set(k,[]); m.get(k).push(p.v);}); return [...m].map(([k,v])=>k+": "+v.map(fmtPeso).join(" + ")).join(" · "); }
+
+function pendientes(){
+  const f=[]; const eq=calcEquipo(S);
+  if(!S.id) f.push([0,"N° de servicio"]); if(!S.pgvi) f.push([0,"N° de registro PG-VI-F3"]); if(!(S.consec>0)) f.push([0,"consecutivo de calibración del día"]); if(!S.tecnico) f.push([0,"técnico"]); if(!S.bd.cliente) f.push([0,"cliente"]); if(!S.bd.lugar.trim()) f.push([0,"lugar de calibración"]);
+  if(!(S.max>0)||!(S.d>0)||!(S.alcance>0)) f.push([0,"Max, d y alcance"]);
+  if(S.tipo==="calibración N° mod."&&!S.motivo) f.push([0,"motivo de la corrección"]);
+  if(S.previas.some(x=>!x)) f.push([1,S.previas.filter(x=>!x).length+" condiciones previas"]);
+  if(S.comp.some(c=>!c.tiene||(c.tiene==="Sí"&&!c.estado))) f.push([1,"inspección de componentes"]);
+  if(!S.llegada||!S.inicio) f.push([2,"hora de llegada e inicio"]); if(!S.higro) f.push([2,"termohigrómetro"]); if(S.t0===null||S.h0===null) f.push([2,"temperatura y humedad iniciales"]);
+  if(!FORMAS[S.forma]||S.eccIni.slice(0,FORMAS[S.forma].pos.length).some(x=>x===null)||S.errIni.some(x=>x===null)) f.push([3,"lecturas iniciales"]);
+  if(!S.ajuste) f.push([3,"indicar si se realizó ajuste"]);
+  if(S.ajuste==="Sí"&&(S.cargaAjuste===null||S.postAjuste.some(x=>x===null))) f.push([3,"resultados después de ajuste"]);
+  if(!S.sets.length) f.push([4,"seleccionar pesas"]);
+  else if(eq.cargas.some(c=>typeof c==="number"&&!componer(unidad()==="kg"?c*1000:c,S.sets))) f.push([4,"las pesas no completan todas las cargas"]);
+  if(eq.cargas.some((c,i)=>typeof c==="number"&&S.lin[i]===null)) f.push([5,"indicaciones de linealidad"]);
+  if(S.rep.some(x=>x===null)) f.push([6,"5 lecturas"]);
+  if(!FORMAS[S.forma]) f.push([7,"forma del receptor"]); else if(S.ecc.slice(0,FORMAS[S.forma].pos.length).some(x=>x===null)) f.push([7,"lecturas por posición"]);
+  if(S.t1===null||S.h1===null) f.push([8,"condiciones finales"]); if(!S.obs.trim()) f.push([8,"observaciones (o N/A)"]);
+  return f;
+}
+function estadoPaso(i){ const p=pendientes().filter(x=>x[0]===i); return p.length?"warn":"done"; }
+
+/* ---------- captura → celdas de la plantilla (mapa de celdas v0) ---------- */
+function frac(hhmm){ if(!hhmm) return null; const [a,b]=hhmm.split(":").map(Number); return r6((a*60+b)/1440); }
+function idHC(){ return /^\d+$/.test(S.id||"")?Number(S.id):S.id; } // 1, 2, 3 se escriben como número (igual que en Excel)
+function construirCaptura(){
+  const eq=calcEquipo(S); const b={}; const set=(k,v)=>{ if(v!==null&&v!==undefined&&v!=="") b[k]=v; };
+  set("G5",dos(S.fecha.d)); set("J5",dos(S.fecha.m)); set("N5",S.fecha.a); set("Y5",frac(S.llegada)); set("BE6",idHC()); set("AZ7",S.tipo); set("BH7",S.tecnico); set("BH5",S.pgvi); set("BF7",S.consec>0?dos(S.consec):null); if(S.tipo==="calibración N° mod.") set("BI7",S.sufijo); if(S.tipo==="calibración N° mod.") set("AU15",S.motivo);
+  S.previas.forEach((v,i)=>set("AC"+(19+i),v));
+  S.comp.forEach((c,i)=>{ const r=21+i; if(c.tiene==="Sí") b["AX"+r]="X"; if(c.tiene==="No") b["AZ"+r]="X"; if(c.estado) b[{Bueno:"BB",Regular:"BD",Malo:"BF"}[c.estado]+r]="X"; });
+  const nPos=FORMAS[S.forma]?FORMAS[S.forma].pos.length:5; if(FORMAS[S.forma]) b[FORMAS[S.forma].celda]="X";
+  ["N","R","V","Z","AC","AG","AK"].forEach((c,i)=>b[c+"35"]= i<nPos ? S.eccIni[i] : "N/A"); Object.keys(b).forEach(k=>{ if(b[k]===null) delete b[k]; });
+  ["N","X","AG"].forEach((c,i)=>set(c+"37",S.errIni[i]));
+  if(S.ajuste==="Sí"){ ["N","X","AG"].forEach((c,i)=>set(c+"38",S.postAjuste[i])); set("N40",S.cargaAjuste); } else if(S.ajuste==="No"){ ["N38","X38","AG38","N40"].forEach(k=>b[k]="N/A"); }
+  if(S.higro) b.Y43=Number(S.higro); set("J44",S.t0); set("X44",S.h0); set("K49",frac(S.inicio));
+  eq.cargas.forEach((c,i)=>{ if(typeof c==="number") set("L"+(55+i),S.lin[i]); });
+  S.rep.forEach((v,i)=>set("AW"+(55+i),v));
+  for(let i=0;i<7;i++){ if(i<nPos) set("C"+(69+i),S.ecc[i]); else b["C"+(69+i)]="N/A"; }
+  set("J81",S.t1); set("X81",S.h1); set("B93",S.obs);
+  const bd={A:idHC(),B:normCodigo(S.bd.codigo),C:S.bd.procedimiento,D:S.bd.direccion,E:S.bd.equipo,F:S.bd.cliente,G:S.bd.marca,H:S.bd.modelo,I:S.bd.serie,J:S.bd.periodo,K:S.bd.ubicacion,L:S.bd.lugar,
+    M:S.max?`0 ${S.unidad} a ${fmt(S.max)} ${S.unidad}`.replace(/ /g," "):"",N:S.max,O:S.d,P:S.unidad,R:S.alcance,U:Number(S.ncargas),AJ:S.bd.correo,AK:S.bd.telefono,AL:S.bd.encargado};
+  const sinExc = !!FORMAS[S.forma]?.sinExc; const nv=v=>typeof v==="number"?v:"N/A";
+  const reemplazo = eq.cargas.length ? { V:nv(eq.iniciales[0]), W:nv(eq.iniciales[1]), X:nv(eq.iniciales[2]), Y: sinExc?"N/A":nv(eq.excIni),
+    Z:nv(eq.cargas[0]), AA:nv(eq.cargas[1]), AB:nv(eq.cargas[2]), AC:nv(eq.cargas[3]), AD:nv(eq.cargas[4]), AE:nv(eq.cargas[5]), AF:nv(eq.cargas[6]), AG:nv(eq.cargas[7]),
+    AH:nv(eq.rep), AI: sinExc?"N/A":nv(eq.exc) } : (sinExc?{Y:"N/A",AI:"N/A"}:undefined);
+  const refsLect=Object.keys(b).filter(k=>typeof b[k]==="number"&&/^(N|R|V|Z|AC|AG|AK)35$|^(N|X|AG)3[78]$|^L(5[5-9]|6[0-2])$|^AW(5[5-9]|6[0-9])$|^C(69|7[0-5])$/.test(k));
+  const formato_lecturas = S.d ? {decimales:dec(+S.d.toFixed(6)),celdas:{balanzas:refsLect}} : undefined;
+  return {servicio:S.id, uid:S.uid, BD:bd, BD_reemplazar_formula:reemplazo, celdas:{balanzas:b}, formato_lecturas, patrones:{seleccion:S.sets,unidad:S.unidad,cargas:eq.cargas.map(c=>c===null?"N/A":c)},
+    meta:{equipo_id:S.equipoId||"",contacto_id:S.contactoId||"",certificado:numCertificado(),pgvi:S.pgvi,forma:S.forma,app:"HC-01 Campo",version:"0.1-prototipo",plantilla:"HC-01 balanzas Ver. 13",tecnico:S.tecnico,ajuste:S.ajuste,capturado:new Date().toISOString()}};
+}
+
+/* ---------- envío ---------- */
+let dbRef=null, userRef=null;
+(async()=>{ try{ dbRef=await window.claude?.use?.("db"); userRef=await window.claude?.use?.("user"); }catch(e){} if(dbRef){ escucharEnviadas(); cargarBase(true); } })();
+function escucharEnviadas(){ try{ dbRef.collection("capturas").orderBy("enviado","desc").limit(20).onSnapshot(q=>{ window._env=q.docs.map(d=>d.data()); pintarEnviadas(); },()=>{}); }catch(e){} }
+function pintarEnviadas(){ const el=document.getElementById("enviadas"); if(!el||!window._env) return; const L=window._env;
+  el.replaceChildren(h("h3",{},"Enviadas al laboratorio"), L.length?h("div",{cls:"list"},...L.map(c=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},c.servicio)," · ",c.BD?.F||"",h("div",{cls:"hint"},(c.meta?.tecnico||"")+" · "+new Date(c.enviado).toLocaleString("es-NI"))),h("span",{cls:"pill "+(c.estado==="HC generada"?"ok":"warn")},c.estado||"Recibida")))):h("p",{cls:"hint"},"Aún no hay capturas enviadas.")); }
+const GRUN = !!(window.google && google.script && google.script.run);   // abierta desde Google Apps Script
+const API_URL = "https://script.google.com/macros/s/AKfycbzVogqE0ARuNujb3yAzJnul8fEOvTcnmmMK_ksnwgzdoCZJouDagXVN8S1te09fUBmb/exec";                                                  // abierta como app instalada (GitHub Pages)
+const MODO_WEB = !GRUN && /^https:\/\/script\.google\.com\//.test(API_URL);
+const MODO_GOOGLE = GRUN || MODO_WEB;                                       // hay servidor del laboratorio
+function leerClave(){ try{ return localStorage.getItem("hc01-clave")||""; }catch(e){ return ""; } }
+/* ---------- cola de envío sin señal ---------- */
+const LSQ="hc01-cola";
+function leerCola(){ try{ return JSON.parse(localStorage.getItem(LSQ))||[]; }catch(e){ return []; } }
+function guardarCola(q){ try{ localStorage.setItem(LSQ,JSON.stringify(q)); }catch(e){} }
+const esFallaRed = e => !navigator.onLine || /network|red|conex|failed to fetch|load failed|timeout|NetworkError/i.test(String(e&&e.message||e));
+function marcarEnviado(id,r){ const t=new Date().toISOString(); if(S.uid===id||(!S.uid&&S.id===id)){ S.enviado=t; S.enCola=false; S.hc=r; } if(B[id]){ B[id].enviado=t; B[id].enCola=false; } guardarLocal(); }
+function encolar(cap,clave){ const q=leerCola().filter(x=>(x.cap.uid||x.cap.servicio)!==(cap.uid||cap.servicio)); q.push({cap,clave,t:new Date().toISOString()}); guardarCola(q);
+  if(S.uid===cap.uid){ S.enCola=true; } if(B[cap.uid]) B[cap.uid].enCola=true; guardarLocal(); }
+let procesando=false;
+async function procesarCola(){
+  if(procesando||!MODO_GOOGLE||!navigator.onLine) return; const q=leerCola(); if(!q.length) return; procesando=true;
+  const quedan=[];
+  for(const it of q){ try{ const r=await gas("recibirCaptura",JSON.stringify(it.cap),it.clave); marcarEnviado(it.cap.uid||it.cap.servicio,r); }
+    catch(e){ if(esFallaRed(e)) quedan.push(it); else { it.error=String(e&&e.message||e); quedan.push(it); } } }
+  guardarCola(quedan); procesando=false; if(vista==="toma") render();
+}
+window.addEventListener("online",()=>{ procesarCola(); cargarBase(true); });
+setInterval(procesarCola,60000);
+function enviarGoogle(cap){
+  const msg=$("#envioMsg"); const clave=($("#f-clave")?.value||leerClave()).trim();
+  try{ localStorage.setItem("hc01-clave",clave); }catch(e){}
+  if(!navigator.onLine){ encolar(cap,clave); render(); $("#envioMsg").replaceChildren(h("div",{cls:"note"},"Sin señal: la captura quedó en cola y se enviará sola al recuperar la conexión.")); return; }
+  $("#btnEnviar").disabled=true; msg.replaceChildren(h("div",{cls:"note"},"Enviando y generando la HC-01…"));
+  gas("recibirCaptura",JSON.stringify(cap),clave)
+    .then(r=>{ marcarEnviado(cap.uid,r); render();
+      $("#envioMsg").replaceChildren(h("div",{cls:r.aviso?"note":"note ok"},r.aviso?("Captura recibida. "+r.aviso):("Enviado. HC-01 generada: "+r.nombre+". El laboratorio la recibió por correo y en Drive."))); })
+    .catch(e=>{ $("#btnEnviar").disabled=false;
+      if(esFallaRed(e)){ encolar(cap,clave); render(); $("#envioMsg").replaceChildren(h("div",{cls:"note"},"Sin conexión: la captura quedó en cola y se enviará sola al recuperar la señal.")); return; }
+      $("#envioMsg").replaceChildren(h("div",{cls:"note bad"},"No se pudo enviar: "+(e&&e.message||e)+". Los datos siguen guardados en este equipo; corrija e intente de nuevo.")); });
+}
+async function enviar(){
+  const msg=$("#envioMsg"); const cap=construirCaptura();
+  if(MODO_GOOGLE) return enviarGoogle(cap);
+  if(!dbRef){ msg.replaceChildren(h("div",{cls:"note bad"},"No hay conexión con el laboratorio desde esta vista. Use «Descargar respaldo» y vuelva a intentar con conexión.")); return; }
+  $("#btnEnviar").disabled=true; msg.replaceChildren(h("div",{cls:"note"},"Enviando…"));
+  try{ const uid=userRef?await userRef.id?.():null; const now=new Date().toISOString();
+    await dbRef.collection("capturas").doc(S.id.replace(/[\/\s]/g,"_")).set({...cap,estado:"Recibida",enviado:now,enviado_por:uid||null});
+    S.enviado=now; cambio(); msg.replaceChildren(h("div",{cls:"note ok"},"Enviado. El laboratorio lo verá en la lista de capturas recibidas.")); render();
+  }catch(e){ $("#btnEnviar").disabled=false; const c=e?.code||""; msg.replaceChildren(h("div",{cls:"note bad"}, c==="not_granted"||c==="permission_denied"?"Su usuario no tiene permiso para enviar. Pida al laboratorio que lo agregue como colaborador.":"No se pudo enviar ("+(c||"error")+"). Los datos siguen guardados en este equipo; intente de nuevo.")); }
+}
+async function descargar(){ const msg=$("#envioMsg"); try{ const dl=await window.claude?.use?.("downloads"); if(!dl){ msg.replaceChildren(h("div",{cls:"note"},"La descarga no está disponible en esta vista. Abra «Ver datos que recibe la plantilla» y copie el contenido.")); return; }
+  await dl.save({filename:(S.id||"captura")+"_HC-01.json",data:JSON.stringify(construirCaptura(),null,1)}); }catch(e){ msg.replaceChildren(h("div",{cls:"note"},"Descarga cancelada.")); } }
+
+/* ---------- render ---------- */
+function pintarPasos(){ $("#steps").replaceChildren(...PASOS.map(([k,t],i)=>h("button",{type:"button",role:"tab","aria-selected":i===paso,cls:i===paso?"on":"",on:{click:()=>{paso=i;render();}}},h("span",{cls:"n"},String(i+1)),t,h("span",{cls:"dot "+(i<9?estadoPaso(i):"")})))); }
+function render(){
+  $("#svcTag").textContent=S.id||"Sin servicio";
+  $("#sw-toma").classList.toggle("on",vista==="toma"); $("#sw-base").classList.toggle("on",vista==="base");
+  $("#steps").hidden=vista!=="toma"; document.querySelector("nav.foot").hidden=vista!=="toma";
+  if(vista==="base"){ $("#main").replaceChildren(h("section",{cls:"card"},...vistaBase())); return; }
+  $("#main").replaceChildren(h("section",{cls:"card"},...V[PASOS[paso][0]]()));
+  pintarPasos(); pintarEnviadas();
+  $("#prevBtn").disabled=paso===0; $("#nextBtn").textContent=paso===PASOS.length-1?"Inicio":"Siguiente";
+  $("#stepLabel").textContent=`Paso ${paso+1} de ${PASOS.length}`;
+  $("#steps").children[paso]?.scrollIntoView({block:"nearest",inline:"center"});
+}
+$("#sw-toma").onclick=()=>{vista="toma";render();window.scrollTo(0,0);};
+$("#sw-base").onclick=()=>{vista="base";render();window.scrollTo(0,0);};
+$("#prevBtn").onclick=()=>{ if(paso>0){paso--;render();window.scrollTo(0,0);} };
+$("#nextBtn").onclick=()=>{ paso=paso<PASOS.length-1?paso+1:0; render(); window.scrollTo(0,0); };
+render(); guardarLocal();
+if(MODO_GOOGLE) setTimeout(()=>{ cargarBase(true); procesarCola(); },300);
+</script>
+
+<script>
+/* App instalable: guarda la app en el teléfono para que abra sin internet */
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+</script>
+</body>
+</html>
