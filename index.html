@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1210-1055</small></div>
+      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1210-1439</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -189,6 +189,9 @@ function calcBase(s){
   }
   return out;
 }
+// Repetibilidad: con carga mayor a 100 kg se hacen 3 repeticiones; si no, 5 (la plantilla usa N/A en AW58:AW59 para 3)
+function repMin3(eq){ const c=eq&&eq.rep; if(typeof c!=="number") return false; const kg=(S.unidad==="kg")?c:c/1000; return kg>100; }
+function nRep(eq){ return repMin3(eq)&&S.rep[3]===null&&S.rep[4]===null?3:5; } // con >100 kg: mínimo 3; si se anotan la 4ª y 5ª, se usan las 5
 function calcEquipo(s){
   const b=calcBase(s); const cm=s.cm||{}; const ov=(v,o)=> (o===null||o===undefined||v==="N/A") ? v : o;
   b.excIni=b.exc;
@@ -651,12 +654,12 @@ linealidad(){
     tr.children[3].textContent=E===null?"—":fmt(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); }
 },
 repetibilidad(){
-  const eq=calcEquipo(S); const u=unidad();
+  const eq=calcEquipo(S); const u=unidad(); const min3=repMin3(eq);
   const v=S.rep.filter(x=>x!==null); const prom=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
   const sd=v.length>1?Math.sqrt(v.reduce((a,b)=>a+(b-prom)**2,0)/(v.length-1)):null; const dif=v.length?Math.max(...v)-Math.min(...v):null;
-  return [h("h2",{},"Repetibilidad"),h("p",{cls:"lead"},"Cinco lecturas con la misma carga, retirándola entre cada lectura."),
+  return [h("h2",{},"Repetibilidad"),h("p",{cls:"lead"},min3?"Carga mayor a 100 kg: mínimo 3 lecturas con la misma carga, retirándola entre cada lectura. La 4ª y la 5ª son opcionales: anote las dos o déjelas vacías (en la HC quedan como N/A).":"Cinco lecturas con la misma carga, retirándola entre cada lectura."),
     h("div",{cls:"calc"},h("div",{},h("span",{},"Carga"),h("b",{},eq.rep?fmtL(eq.rep)+" "+u:"—")),h("div",{},h("span",{},"Desv. estándar"),h("b",{},sd===null?"—":fmt(r6(sd)))),h("div",{},h("span",{},"Diferencia máx."),h("b",{},dif===null?"—":fmt(r6(dif))))),
-    h("div",{cls:"grid"},...S.rep.map((_,i)=>campoNum((i+1)+"ª lectura",()=>S.rep[i],x=>S.rep[i]=x,{id:"f-r"+i,check:multD,lect:true})))];
+    h("div",{cls:"grid"},...S.rep.map((_,i)=>campoNum((i+1)+"ª lectura"+(min3&&i>=3?" (opcional)":""),()=>S.rep[i],x=>S.rep[i]=x,{id:"f-r"+i,check:multD,lect:true})))];
 },
 excentricidad(){
   const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma]; const n=F?F.pos.length:0;
@@ -740,7 +743,8 @@ function pendientes(){
   if(!S.sets.length) f.push([4,"seleccionar pesas"]);
   else if(eq.cargas.some(c=>typeof c==="number"&&!componer(unidad()==="kg"?c*1000:c,S.sets))) f.push([4,"las pesas no completan todas las cargas"]);
   if(eq.cargas.some((c,i)=>typeof c==="number"&&S.lin[i]===null)) f.push([5,"indicaciones de linealidad"]);
-  if(S.rep.some(x=>x===null)) f.push([6,"5 lecturas"]);
+  if(repMin3(eq)){ if(S.rep.slice(0,3).some(x=>x===null)) f.push([6,"3 lecturas de repetibilidad"]); else if((S.rep[3]===null)!==(S.rep[4]===null)) f.push([6,"la 4ª y 5ª lectura de repetibilidad (anote las dos o ninguna)"]); }
+  else if(S.rep.some(x=>x===null)) f.push([6,"5 lecturas de repetibilidad"]);
   if(!FORMAS[S.forma]) f.push([7,"forma del receptor"]); else if(S.ecc.slice(0,FORMAS[S.forma].pos.length).some(x=>x===null)) f.push([7,"lecturas por posición"]);
   if(S.t1===null||S.h1===null) f.push([8,"condiciones finales"]); if(!S.obs.trim()) f.push([8,"observaciones (o N/A)"]);
   return f;
@@ -761,7 +765,7 @@ function construirCaptura(){
   if(S.ajuste==="Sí"){ ["N","X","AG"].forEach((c,i)=>set(c+"38",S.postAjuste[i])); set("N40",S.cargaAjuste); } else if(S.ajuste==="No"){ ["N38","X38","AG38","N40"].forEach(k=>b[k]="N/A"); }
   if(S.higro) b.Y43=Number(S.higro); set("J44",S.t0); set("X44",S.h0); set("K49",frac(S.inicio));
   eq.cargas.forEach((c,i)=>{ if(typeof c==="number") set("L"+(55+i),S.lin[i]); });
-  S.rep.forEach((v,i)=>set("AW"+(55+i),v));
+  { const n=nRep(eq); S.rep.forEach((v,i)=>{ if(i<n) set("AW"+(55+i),v); else b["AW"+(55+i)]="N/A"; }); }
   for(let i=0;i<7;i++){ if(i<nPos) set("C"+(69+i),S.ecc[i]); else b["C"+(69+i)]="N/A"; }
   set("J81",S.t1); set("X81",S.h1); set("B93",S.obs);
   const bd={A:idHC(),B:normCodigo(S.bd.codigo),C:S.bd.procedimiento,D:S.bd.direccion,E:S.bd.equipo,F:S.bd.cliente,G:S.bd.marca,H:S.bd.modelo,I:S.bd.serie,J:S.bd.periodo,K:S.bd.ubicacion,L:S.bd.lugar,
