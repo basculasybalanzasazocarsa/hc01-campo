@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1210-1439</small></div>
+      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1310-1154</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -341,7 +341,7 @@ function cajaClave(){
 }
 async function cargarBase(silencioso){
   try{
-    if(MODO_GOOGLE){ if(!leerClave()) throw new Error("falta el código de acceso"); const r=await gas("obtenerBase",leerClave()); BASE={contactos:[],...r}; }
+    if(MODO_GOOGLE){ if(!leerClave()) throw new Error("falta el código de acceso"); const r=await gas("obtenerBase",leerClave()); const ids=r.ids||{}; delete r.ids; BASE={contactos:[],...r}; cambiarIds(ids); mezclarPendientes(); }
     else if(dbRef){ const [c,k,e]=await Promise.all([dbRef.collection("clientes").get(),dbRef.collection("contactos").get(),dbRef.collection("equipos").get()]);
       BASE={clientes:c.docs.map(d=>d.data()),contactos:k.docs.map(d=>d.data()),equipos:e.docs.map(d=>d.data()),actualizado:new Date().toISOString()}; }
     else throw new Error("sin conexión");
@@ -356,7 +356,7 @@ function subirPendientes(){ // una sola subida a la vez; los cambios nuevos espe
 async function subirPendientes_(){
   const lote=PEND.slice(), fallidos=[]; errorSync="";
   for(const p of lote){ try{
-      if(MODO_GOOGLE) await gas("guardarRegistro",p.tipo,JSON.stringify(p.obj),leerClave(),p.tecnico||"");
+      if(MODO_GOOGLE){ const r=await gas("guardarRegistro",p.tipo,JSON.stringify(p.obj),leerClave(),p.tecnico||""); if(r&&r.id&&r.id!==p.obj.id) cambiarIds({[p.obj.id]:r.id}); }
       else if(dbRef){ await dbRef.collection({cliente:"clientes",contacto:"contactos",equipo:"equipos"}[p.tipo]).doc(p.obj.id).set(p.obj);
         await dbRef.collection("cambios").add({fecha:new Date().toISOString(),tipo:p.tipo,id:p.obj.id,tecnico:p.tecnico||""}); }
       else throw new Error("sin conexión con la base");
@@ -370,6 +370,20 @@ async function guardarReg(tipo,obj){
   PEND.push({tipo,obj:i>=0?lista[i]:obj,tecnico:S.tecnico}); guardarBaseLocal();
   await subirPendientes();
   baseMsg = PEND.length ? "Guardado en este equipo, pero aún no en la base. "+estadoSync() : "Guardado en la base.";
+}
+// Códigos cortos C-0001 / K-0001 / E-0001: los asigna el servidor. Mientras no se suba, el registro lleva un id provisional TMP-…
+function idTemporal(){ return "TMP-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,6).toUpperCase(); }
+function cambiarIds(mapa){
+  if(!mapa||!Object.keys(mapa).length) return; const r=v=>(v&&mapa[v])||v;
+  const fix=o=>{ if(!o) return; o.id=r(o.id); if(o.cliente_id) o.cliente_id=r(o.cliente_id); if(o.contacto_id) o.contacto_id=r(o.contacto_id); };
+  ["clientes","contactos","equipos"].forEach(k=>(BASE[k]||[]).forEach(fix)); PEND.forEach(p=>fix(p.obj));
+  [S,...Object.values(B)].forEach(x=>{ if(x) ["clienteId","equipoId","contactoId"].forEach(k=>{ if(x[k]) x[k]=r(x[k]); }); });
+  const q=leerCola(); q.forEach(x=>{ const m=x.cap&&x.cap.meta; if(m){ m.equipo_id=r(m.equipo_id); m.contacto_id=r(m.contacto_id); } }); guardarCola(q);
+  ["cliente","equipo","contacto"].forEach(k=>{ if(baseSel[k]) baseSel[k]=r(baseSel[k]); });
+  guardarBaseLocal(); guardarLocal();
+}
+function mezclarPendientes(){ // lo guardado en este equipo que aún no sube sigue visible después de descargar la base
+  PEND.forEach(p=>{ const l={cliente:BASE.clientes,contacto:BASE.contactos,equipo:BASE.equipos}[p.tipo]; const i=l.findIndex(x=>x.id===p.obj.id); if(i>=0) l[i]={...l[i],...p.obj}; else l.push({...p.obj}); });
 }
 function slug(t){ return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,""); }
 function contactosDe(cid,todos){ return BASE.contactos.filter(k=>k.cliente_id===cid&&(todos||String(k.activo||"Sí")!=="No")); }
@@ -389,8 +403,8 @@ function aplicarEquipo(e){
 }
 function equipoDesdeServicio(){
   const eq=calcEquipo(S); const nv=v=>typeof v==="number"?v:"N/A";
-  const cid=S.clienteId||slug(S.bd.cliente).toUpperCase().slice(0,20)||"CLIENTE";
-  const id=S.equipoId||(slug(S.bd.codigo||"SC")+"_"+slug(S.bd.serie||Date.now()));
+  const cid=S.clienteId||"";
+  const id=S.equipoId||idTemporal();
   return {id,cliente_id:cid,codigo:normCodigo(S.bd.codigo),tipo:S.bd.equipo,marca:S.bd.marca,modelo:S.bd.modelo,serie:S.bd.serie,periodo:S.bd.periodo??0,ubicacion:S.bd.ubicacion,lugar:S.bd.lugar,
     intervalo:S.max?`(0 a ${S.max})`:"",max:S.max,d:S.d,unidad:S.unidad,alcance:S.alcance,ncargas:Number(S.ncargas),procedimiento:S.bd.procedimiento||"PC-I",forma:S.forma||"",
     c_min:nv(eq.iniciales[0]),c_mitad:nv(eq.iniciales[1]),c_max:nv(eq.iniciales[2]),c_exc_ini:nv(eq.excIni),
@@ -399,9 +413,9 @@ function equipoDesdeServicio(){
 }
 async function guardarEquipoDelServicio(){
   if(!S.bd.cliente){ baseMsg="Escriba el cliente antes de guardar el equipo."; render(); return; }
-  if(!S.clienteId){ const cid=slug(S.bd.cliente).toUpperCase().slice(0,20); S.clienteId=cid;
-    if(!BASE.clientes.find(c=>c.id===cid)) await guardarReg("cliente",{id:cid,nombre:S.bd.cliente,direccion:S.bd.direccion,notas:""}); }
-  if(!S.contactoId && S.bd.encargado){ const k={id:S.clienteId+"-"+slug(S.bd.encargado).toUpperCase().slice(0,24),cliente_id:S.clienteId,nombre:S.bd.encargado,area:"",cargo:"",correo:S.bd.correo,telefono:S.bd.telefono,activo:"Sí"}; await guardarReg("contacto",k); S.contactoId=k.id; }
+  if(!S.clienteId){ const n=slug(S.bd.cliente).toUpperCase(), ya=BASE.clientes.find(c=>slug(c.nombre).toUpperCase()===n);
+    if(ya) S.clienteId=ya.id; else { S.clienteId=idTemporal(); await guardarReg("cliente",{id:S.clienteId,nombre:S.bd.cliente,direccion:S.bd.direccion,notas:""}); } }
+  if(!S.contactoId && S.bd.encargado){ const k={id:idTemporal(),cliente_id:S.clienteId,nombre:S.bd.encargado,area:"",cargo:"",correo:S.bd.correo,telefono:S.bd.telefono,activo:"Sí"}; await guardarReg("contacto",k); S.contactoId=k.id; }
   const e=equipoDesdeServicio(); S.equipoId=e.id; await guardarReg("equipo",e); cambio(); render();
 }
 function selectorBase(){
@@ -417,7 +431,7 @@ function selectorBase(){
     S.nuevoContacto?h("div",{cls:"grp",style:"border:1px dashed var(--line);border-radius:8px;padding:10px;display:grid;gap:8px"},h("b",{},"Nuevo contacto de "+S.bd.cliente),
       h("div",{cls:"grid"},...[["nombre","Nombre"],["area","Área"],["cargo","Cargo"],["correo","Correo"],["telefono","Teléfono"]].map(([k,l])=>campoTexto(l,()=>S.nuevoContacto[k],v=>S.nuevoContacto[k]=v,{id:"f-nc-"+k}))),
       h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ const n=S.nuevoContacto; if(!n.nombre.trim()){ baseMsg="Escriba el nombre del contacto."; render(); return; }
-          const k={id:S.clienteId+"-"+slug(n.nombre).toUpperCase().slice(0,24),cliente_id:S.clienteId,...n,activo:"Sí"}; await guardarReg("contacto",k); S.nuevoContacto=null; aplicarContacto(k.id); cambio(); render(); }}},"Guardar contacto"),
+          const k={id:idTemporal(),cliente_id:S.clienteId,...n,activo:"Sí"}; await guardarReg("contacto",k); S.nuevoContacto=null; aplicarContacto(k.id); cambio(); render(); }}},"Guardar contacto"),
         h("button",{cls:"btn",type:"button",on:{click:()=>{S.nuevoContacto=null;render();}}},"Cancelar"))):null,
     S.equipoId&&(BASE.equipos.find(e=>e.id===S.equipoId)||{}).revisar?h("div",{cls:"note"},"Revisar en la base: "+BASE.equipos.find(e=>e.id===S.equipoId).revisar):null,
     h("div",{cls:"row"},
@@ -440,9 +454,7 @@ async function guardarEquipoBase(e,nuevo,otro,forzar){
     e.codigo=normCodigo(e.codigo);
     const rep=BASE.equipos.find(x=>x.cliente_id===e.cliente_id&&((ser&&identificador(x.serie)===ser)||(cod&&identificador(x.codigo)===cod)));
     if(rep&&!forzar){ baseSel.repetido={e,otro}; baseMsg="Ya existe un equipo de este cliente con "+(ser&&identificador(rep.serie)===ser?"la serie "+rep.serie:"el código "+rep.codigo)+" ("+[rep.codigo,rep.marca,rep.modelo].filter(Boolean).join(" ")+"). Si es otro equipo, toque «Es otro equipo, guardar igual»."; render(); return; }
-    let id=slug(cod?e.codigo:"SC")+"_"+slug(ser?e.serie:Date.now().toString(36)), n=2;
-    while(BASE.equipos.some(x=>x.id===id)) id=id.replace(/~\d+$/,"")+"~"+(n++);
-    e.id=id;
+    e.id=idTemporal();
   }
   baseSel.repetido=null; baseSel.borrador=null; e.codigo=normCodigo(e.codigo);
   await guardarReg("equipo",e);
@@ -464,7 +476,7 @@ function vistaBase(){
     out.push(h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:null,equipo:null,q:baseSel.q};render();}}},"← Volver")),
       h("h3",{},nuevo?"Nuevo cliente":c.nombre),
       h("div",{cls:"grid"},...f.map(k=>campoTexto(lbl[k],()=>c[k],v=>c[k]=v,{id:"b-c-"+k}))),
-      h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ if(!c.nombre.trim()){baseMsg="Escriba la razón social.";render();return;} if(nuevo) c.id=slug(c.nombre).toUpperCase().slice(0,20); await guardarReg("cliente",c); baseSel.cliente=c.id; render(); }}},"Guardar cliente"),
+      h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ if(!c.nombre.trim()){baseMsg="Escriba la razón social.";render();return;} if(nuevo) c.id=idTemporal(); await guardarReg("cliente",c); baseSel.cliente=c.id; render(); }}},"Guardar cliente"),
         nuevo?null:h("button",{cls:"btn",type:"button",on:{click:()=>{ baseSel.equipo="__nuevo"; baseSel.molde=null; baseSel.borrador=null; baseSel.repetido=null; baseMsg=""; render(); }}},"+ Agregar equipo")));
     if(!nuevo){ const cons=contactosDe(c.id,true);
       out.push(h("h3",{},"Contactos ("+cons.length+")"),h("div",{cls:"list"},...cons.map(k=>{ const ed=baseSel.contacto===k.id; const kk={...k};
@@ -473,7 +485,7 @@ function vistaBase(){
             h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",on:{click:async()=>{ await guardarReg("contacto",kk); baseSel.contacto=null; render(); }}},"Guardar"),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.contacto=null;render();}}},"Cancelar")))
           : h("div",{cls:"item"},h("div",{},h("b",{},k.nombre),(String(k.activo)==="No"?h("span",{cls:"pill"}," inactivo"):null),h("div",{cls:"hint"},[k.area,k.cargo,k.correo,k.telefono].filter(Boolean).join(" · ")||"Sin área ni datos de contacto")),
               h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.contacto=k.id;render();}}},"Editar")); })),
-        h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:async()=>{ const id=c.id+"-NUEVO-"+Date.now().toString(36).toUpperCase(); await guardarReg("contacto",{id,cliente_id:c.id,nombre:"Nuevo contacto",area:"",cargo:"",correo:"",telefono:"",activo:"Sí"}); baseSel.contacto=id; render(); }}},"Agregar contacto")));
+        h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:async()=>{ const id=idTemporal(); await guardarReg("contacto",{id,cliente_id:c.id,nombre:"Nuevo contacto",area:"",cargo:"",correo:"",telefono:"",activo:"Sí"}); baseSel.contacto=id; render(); }}},"Agregar contacto")));
       const eqs=equiposDe(c.id);
       out.push(h("h3",{},eqs.length+" equipos"),h("div",{cls:"list"},...eqs.map(e=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},e.codigo)," · "+[e.tipo,e.marca,e.modelo].filter(Boolean).join(" "),h("div",{cls:"hint"},"Serie "+(e.serie||"—")+" · "+(e.lugar||"")+" · Max "+e.max+" "+e.unidad+(e.ultimo_cert?" · Últ. cert. "+e.ultimo_cert:"")),e.revisar?h("div",{cls:"hint warn"},"Revisar: "+e.revisar):null),
         h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel.equipo=e.id;render();}}},"Ver / editar"),h("button",{cls:"btn pri",type:"button",on:{click:()=>{ if(S.ejemplo||S.enviado){ if(S.id&&!S.ejemplo) B[S.uid]=S; S=nuevo(false);} aplicarEquipo(e); vista="toma"; paso=0; render(); window.scrollTo(0,0); }}},"Usar en servicio"))))),
@@ -484,7 +496,7 @@ function vistaBase(){
     const lbl={codigo:"Código",tipo:"Tipo de equipo",marca:"Marca",modelo:"Modelo",serie:"Serie",periodo:"Periodo (meses)",ubicacion:"Ubicación",lugar:"Lugar de calibración",intervalo:"Intervalo de medida",max:"Capacidad máxima",d:"Resolución (d)",unidad:"Unidad",alcance:"Alcance de trabajo",ncargas:"N° de cargas",forma:"Forma del receptor",
       c_min:"Carga inicial mín",c_mitad:"Carga inicial ½ Max",c_max:"Carga inicial Max",c_exc_ini:"Excentricidad inicial",c_p1:"Linealidad 1",c_p2:"Linealidad 2",c_p3:"Linealidad 3",c_p4:"Linealidad 4",c_p5:"Linealidad 5",c_p6:"Linealidad 6",c_p7:"Linealidad 7",c_p8:"Linealidad 8",c_rep:"Repetibilidad",c_exc:"Excentricidad",contacto_id:"Último solicitante",revisar:"Observación (revisar)"};
     const campo=k=> k==="tipo"?campoSel(lbl[k],TIPOS_EQ.concat(["Sistema de Pesaje de Tolva"]).filter((v,i,a)=>a.indexOf(v)===i),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
-      : k==="unidad"?campoSel(lbl[k],["g","kg"],()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
+      : k==="unidad"?campoSel(lbl[k],["g","kg","lb"],()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
       : k==="contacto_id"?campoSel(lbl[k],contactosDe(e.cliente_id,true).map(x=>[x.id,etiquetaCon(x)]),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
       : k==="forma"?campoSel(lbl[k],Object.entries(FORMAS).map(([kk,f])=>[kk,f.nombre]),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
       : k==="codigo"?campoTexto(lbl[k],()=>e[k],v=>e[k]=v,{id:"b-e-"+k,extra:botonesSinCodigo(()=>e[k],v=>e[k]=v,"b-e-"+k)})
@@ -801,7 +813,9 @@ function encolar(cap,clave){ const q=leerCola().filter(x=>(x.cap.uid||x.cap.serv
   if(S.uid===cap.uid){ S.enCola=true; } if(B[cap.uid]) B[cap.uid].enCola=true; guardarLocal(); }
 let procesando=false;
 async function procesarCola(){
-  if(procesando||!MODO_GOOGLE||!navigator.onLine) return; const q=leerCola(); if(!q.length) return; procesando=true;
+  if(procesando||!MODO_GOOGLE||!navigator.onLine||!leerCola().length) return; procesando=true;
+  try{ await subirPendientes(); }catch(e){} // primero los clientes/equipos nuevos: así la captura ya lleva el código definitivo
+  const q=leerCola();
   const quedan=[];
   for(const it of q){ try{ const r=await gas("recibirCaptura",JSON.stringify(it.cap),it.clave); marcarEnviado(it.cap.uid||it.cap.servicio,r); }
     catch(e){ if(esFallaRed(e)) quedan.push(it); else { it.error=String(e&&e.message||e); quedan.push(it); } } }
@@ -822,7 +836,9 @@ function enviarGoogle(cap){
       $("#envioMsg").replaceChildren(h("div",{cls:"note bad"},"No se pudo enviar: "+(e&&e.message||e)+". Los datos siguen guardados en este equipo; corrija e intente de nuevo.")); });
 }
 async function enviar(){
-  const msg=$("#envioMsg"); const cap=construirCaptura();
+  const msg=$("#envioMsg");
+  if(MODO_GOOGLE&&PEND.length&&navigator.onLine){ try{ await subirPendientes(); }catch(e){} }
+  const cap=construirCaptura();
   if(MODO_GOOGLE) return enviarGoogle(cap);
   if(!dbRef){ msg.replaceChildren(h("div",{cls:"note bad"},"No hay conexión con el laboratorio desde esta vista. Use «Descargar respaldo» y vuelva a intentar con conexión.")); return; }
   $("#btnEnviar").disabled=true; msg.replaceChildren(h("div",{cls:"note"},"Enviando…"));
