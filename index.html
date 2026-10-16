@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1610-1632</small></div>
+      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1610-1702</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -602,25 +602,30 @@ ambiente(){
 iniciales(){
   const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma];
   if(!eq.iniciales.length) return [h("h2",{},"Pruebas iniciales"),h("div",{cls:"note"},"Complete Max, d, alcance y N° de cargas en el paso Servicio.")];
-  function actIni(){ let fuera=false, alguno=false; eq.iniciales.forEach((L,i)=>{ const tr=document.getElementById("ir"+i); const v=S.errIni[i]; const M=emt(L,eq); const E=v===null?null:r6(v-L);
+  if(!S.cm) S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]}; if(!S.cm.ini) S.cm.ini=[null,null,null];
+  const chkCarga=v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:(v<=0?{t:"Debe ser mayor que 0."}:null);
+  function actIni(){ let fuera=false, alguno=false; const eq=calcEquipo(S); eq.iniciales.forEach((L,i)=>{ const tr=document.getElementById("ir"+i); const v=S.errIni[i]; const M=emt(L,eq); const E=v===null?null:r6(v-L);
       if(E!==null){alguno=true; if(Math.abs(E)>M) fuera=true;}
-      if(tr){ tr.children[3].textContent=E===null?"—":fmtL(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); } });
+      if(tr){ tr.children[3].textContent=E===null?"—":fmtL(E); tr.children[4].textContent=fmt(M); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); } });
     const n=document.getElementById("iniNota"); if(n) n.replaceChildren(alguno?h("div",{cls:"note"+(fuera?" bad":" ok")},fuera?"Hay errores fuera del EMT. Se sugiere ajuste.":"Errores dentro del EMT."," Criterio provisional: EMT en servicio. Pendiente de confirmar por el laboratorio."):""); }
   setTimeout(actIni,0);
   const autoriza = S.previas[8]==="Sí"||S.previas[6]==="Sí";
   const pos=[1,2,3,4,5,6,7];
   return [h("h2",{},"Pruebas iniciales antes del ajuste"),
-    h("h3",{},"1. Excentricidad inicial"+(F&&!F.sinExc?" · carga "+fmtL(eq.excIni)+" "+u:"")),
+    h("h3",{},"1. Excentricidad inicial"),
     !F?h("div",{},h("p",{cls:"lead"},"Seleccione la forma del receptor de carga. Define las posiciones de la prueba y se usa también en Excentricidad."),selectorForma())
      :h("div",{style:"display:grid;gap:12px"},h("details",{cls:"grp"},h("summary",{},"Forma del receptor: "+F.nombre+" · cambiar"),selectorForma()),
        F.sinExc?h("div",{cls:"note ok"},"Para "+F.nombre.toLowerCase()+" no se aplica prueba de excentricidad. En la HC-01 se registrará N/A.")
-       :h("div",{cls:"ecc"},h("div",{cls:"plate",id:"plateIni"},formaSVG(S.forma,S.eccIni)),
+       :h("div",{style:"display:grid;gap:12px"},
+          campoNum("Carga a aplicar ("+u+")",()=>S.cm.excIni??eq.sug.excIni,v=>S.cm.excIni=(v===null||v===eq.sug.excIni)?null:v,{id:"f-cei",check:chkCarga,hint:(S.cargasEq?"Del equipo: ":"Sugerida: ")+fmtL(eq.sug.excIni)+" "+u}),
+          h("div",{cls:"ecc"},h("div",{cls:"plate",id:"plateIni"},formaSVG(S.forma,S.eccIni)),
           h("div",{cls:"grid"},...F.pos.map((_,i)=>campoNum("Posición "+(i+1),()=>S.eccIni[i],v=>S.eccIni[i]=v,{id:"f-ei"+i,lect:true,check:multD,
-            after:()=>{ document.querySelector('#plateIni [data-p="'+(i+1)+'"]')?.classList.toggle("filled",S.eccIni[i]!==null); }}))))),
+            after:()=>{ document.querySelector('#plateIni [data-p="'+(i+1)+'"]')?.classList.toggle("filled",S.eccIni[i]!==null); }})))))),
     h("h3",{},"2. Errores de indicación (Mín, ½ Max, Max)"),
-    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Punto"),h("th",{},"Carga ("+u+")"),h("th",{},"Indicación"),h("th",{},"Error"),h("th",{cls:"hide-sm"},"EMT ±"),h("th",{},""))),
+    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Punto"),h("th",{},"Carga a aplicar ("+u+")"),h("th",{},"Indicación"),h("th",{},"Error"),h("th",{cls:"hide-sm"},"EMT ±"),h("th",{},""))),
       h("tbody",{},...eq.iniciales.map((L,i)=>{ const {i:inp,msg}=inputNum(()=>S.errIni[i],v=>S.errIni[i]=v,{id:"f-ie"+i,check:multD,lect:true,after:actIni}); const M=emt(L,eq);
-        return h("tr",{id:"ir"+i},h("td",{cls:"l"},["Mín","½ Max","Max"][i]),h("td",{cls:"mono"},fmtL(L)),h("td",{},inp,msg),h("td",{cls:"mono"}),h("td",{cls:"mono hide-sm"},fmt(M)),h("td",{})); })))),
+        const sg=eq.sug.iniciales[i], c=inputNum(()=>S.cm.ini[i]??sg,v=>S.cm.ini[i]=(v===null||v===sg)?null:v,{id:"f-ci"+i,check:chkCarga,after:actIni});
+        return h("tr",{id:"ir"+i},h("td",{cls:"l"},["Mín","½ Max","Max"][i]),h("td",{},c.i,c.msg),h("td",{},inp,msg),h("td",{cls:"mono"}),h("td",{cls:"mono hide-sm"},fmt(M)),h("td",{})); })))),
     h("div",{id:"iniNota"}),
     h("div",{cls:"q"},h("p",{},h("b",{},"¿Se realizó ajuste?")),seg(["Sí","No"],()=>S.ajuste,v=>S.ajuste=v,()=>render())),
     S.ajuste==="Sí"&&!autoriza?h("div",{cls:"note bad"},"En Condiciones previas no consta la autorización del cliente para el ajuste (preguntas 7 y 9)."):null,
@@ -636,8 +641,8 @@ pesas(){
   if(!S.cm) S.cm={lin:Array(8).fill(null),rep:null,exc:null,ini:[null,null,null]};
   const filas=[]; eq.sug.cargas.forEach((c,i)=>{ if(typeof c==="number") filas.push(["Linealidad "+(i+1),c,()=>S.cm.lin[i],v=>S.cm.lin[i]=v]); });
   filas.push(["Repetibilidad",eq.sug.rep,()=>S.cm.rep,v=>S.cm.rep=v]);
-  if(!FORMAS[S.forma]?.sinExc){ filas.push(["Excentricidad",eq.sug.exc,()=>S.cm.exc,v=>S.cm.exc=v]); filas.push(["Excentricidad inicial",eq.sug.excIni,()=>S.cm.excIni,v=>S.cm.excIni=v]); }
-  ["Inicial · Mín","Inicial · ½ Max","Inicial · Max"].forEach((t,i)=>filas.push([t,eq.sug.iniciales[i],()=>S.cm.ini[i],v=>S.cm.ini[i]=v]));
+  if(!FORMAS[S.forma]?.sinExc) filas.push(["Excentricidad",eq.sug.exc,()=>S.cm.exc,v=>S.cm.exc=v]);
+  // las cargas de las pruebas iniciales (excentricidad inicial y Mín, ½ Max, Max) se editan en el paso Pruebas iniciales
   const tablaCargas = eq.sug.cargas.length ? h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Prueba"),h("th",{},(S.cargasEq?"Del equipo":"Sugerida")+" ("+u+")"),h("th",{},"Carga a aplicar ("+u+")"))),
     h("tbody",{},...filas.map(([t,sug,get,set],k)=>{ const {i:inp,msg}=inputNum(()=>get()??sug,v=>set(v===null||v===sug?null:v),{id:"f-cg"+k,check:v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:(v<=0?{t:"Debe ser mayor que 0."}:null),after:()=>{ const t2=document.getElementById("compTabla"); if(t2) t2.replaceWith(tablaComp()); }});
       return h("tr",{},h("td",{cls:"l"},t),h("td",{cls:"mono"},fmtL(sug)),h("td",{},inp,msg)); })))) : null;
@@ -645,7 +650,7 @@ pesas(){
     h("h3",{},"Cargas de prueba"),
     h("p",{cls:"lead"},S.cargasEq?"Cargas registradas para este equipo en la base. Ajústelas a las pesas disponibles; la HC-01 usará las cargas que queden aquí.":"La app propone las cargas según Max y el alcance de trabajo. Ajústelas a las pesas disponibles; la HC-01 usará las cargas que queden aquí."),
     tablaCargas,
-    h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]};cambio();render();}}},S.cargasEq?"Restablecer cargas del equipo":"Restablecer cargas sugeridas")),
+    h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:S.cm.excIni??null,ini:(S.cm.ini||[null,null,null]).slice()};cambio();render();}}},S.cargasEq?"Restablecer cargas del equipo":"Restablecer cargas sugeridas")),
     h("h3",{},"Pesas que lleva al servicio"),
     h("p",{cls:"lead"},"Marque los juegos y pesas que lleva al servicio. La app arma cada carga de linealidad con la menor cantidad de piezas y lo registra en la hoja Patrones."),
     h("div",{cls:"list"},...Object.entries(grupos).map(([g,f])=>{ const ks=keys.filter(f); const n=ks.filter(k=>S.sets.includes(k)).length;
