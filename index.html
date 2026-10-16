@@ -36,7 +36,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 8px;display:grid;gap:8px}
 .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .brand{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.02em}
-.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.01em}
 .svc{font-family:var(--f-mono);font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
 .status{font-size:13px;color:var(--muted)}
 .steps{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
@@ -52,7 +52,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:20px;margin:0;letter-s
 .lead{color:var(--muted);margin:0;max-width:65ch}
 .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 .grid > *{min-width:0}
-label.f{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+label.f{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.01em}
 input,select,textarea{font:500 17px var(--f-body);color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:46px;width:100%}
 input.num{font-family:var(--f-mono);font-size:18px;text-align:right}
 textarea{min-height:110px;resize:vertical}
@@ -62,7 +62,7 @@ input.err{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var
 .hint.bad{color:var(--bad)} .hint.warn{color:var(--signal)}
 .calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .calc div{background:var(--field);padding:10px 12px;display:grid;gap:2px}
-.calc span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.calc span{font-size:12px;color:var(--muted);letter-spacing:.01em}
 .calc b{font-family:var(--f-mono);font-weight:500;font-size:18px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:nowrap}
 .seg button{font:600 15px var(--f-body);background:var(--field);color:var(--ink);border:0;border-left:1px solid var(--line);padding:8px 14px;min-height:44px;min-width:56px;cursor:pointer}
@@ -79,11 +79,11 @@ input.err{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var
 .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
 table{border-collapse:collapse;width:100%;min-width:520px;font-variant-numeric:tabular-nums}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
-th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;background:var(--field)}
+th{font-size:12px;letter-spacing:.01em;color:var(--muted);font-weight:600;background:var(--field)}
 td.l,th.l{text-align:left}
 td input.num{min-height:42px;padding:6px 8px;font-size:17px;min-width:120px}
 .mono{font-family:var(--f-mono)}
-.pill{display:inline-block;font:600 12px var(--f-body);letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:3px 9px;background:var(--chip);color:var(--muted)}
+.pill{display:inline-block;font:600 12px var(--f-body);letter-spacing:.01em;border-radius:999px;padding:3px 9px;background:var(--chip);color:var(--muted)}
 .pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
 .pill.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
 .pill.warn{background:color-mix(in srgb,var(--signal) 20%,transparent);color:var(--signal)}
@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1310-1154</small></div>
+      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1610-1632</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -307,6 +307,7 @@ function inputNum(get,set,opts={}){
   setTimeout(validar,0); i._msg=msg; return {i,msg};
 }
 function campoNum(lbl,get,set,opts={}){ const {i,msg}=inputNum(get,set,opts); return h("label",{cls:"f"},lbl,i,opts.hint?h("span",{cls:"hint"},opts.hint):null,msg); }
+function selectorForma(){ return h("div",{cls:"formas"},...Object.entries(FORMAS).map(([k,f])=>h("button",{type:"button",cls:"forma"+(S.forma===k?" on":""),"aria-pressed":S.forma===k,on:{click:()=>{S.forma=k;cambio();render();}}},formaSVG(k,null),h("span",{},f.nombre),h("small",{},f.sinExc?"No aplica excentricidad":f.pos.length+" posiciones")))); }
 function seg(opciones,get,set,after){ const w=h("div",{cls:"seg",role:"group"}); opciones.forEach(o=>{ const b=h("button",{type:"button",cls:get()===o?"on":"",on:{click:()=>{set(get()===o?"":o); [...w.children].forEach(x=>x.classList.toggle("on",x.textContent===get())); cambio(); if(after) after();}}},o); w.append(b);}); return w; }
 const multD = v => { const eq=calcEquipo(S); const d=S.d; if(!d) return null; const k=Math.round(v/d); return Math.abs(v-k*d)>d*1e-6 ? {t:"No es múltiplo de d = "+fmt(d)+" "+S.unidad+". Verifique la lectura.",lvl:"warn"} : null; };
 const unidad = () => S.unidad||"g";
@@ -396,7 +397,8 @@ function aplicarEquipo(e){
   Object.assign(S.bd,{cliente:c.nombre||S.bd.cliente,direccion:c.direccion||S.bd.direccion,
     codigo:normCodigo(e.codigo),equipo:e.tipo||S.bd.equipo,marca:e.marca,modelo:e.modelo,serie:e.serie,periodo:parseNum(e.periodo)??0,ubicacion:e.ubicacion,lugar:e.lugar||S.bd.lugar,procedimiento:e.procedimiento||"PC-I"});
   const n=v=>{ const x=parseNum(v); return Number.isNaN(x)?null:x; };
-  S.max=n(e.max); S.d=n(e.d); S.unidad=e.unidad||"g"; S.alcance=n(e.alcance)??S.max; { const k=[1,2,3,4,5,6,7,8].filter(i=>typeof n(e["c_p"+i])==="number").length; S.ncargas=String(k>=5&&k<=8?k:(e.ncargas||"5")); } // el N° de cargas sale de las cargas guardadas if(e.forma) S.forma=e.forma;
+  S.max=n(e.max); S.d=n(e.d); S.unidad=e.unidad||"g"; S.alcance=n(e.alcance)??S.max; { const k=[1,2,3,4,5,6,7,8].filter(i=>typeof n(e["c_p"+i])==="number").length; S.ncargas=String(k>=5&&k<=8?k:(e.ncargas||"5")); } // el N° de cargas sale de las cargas guardadas
+  if(e.forma&&FORMAS[e.forma]) S.forma=e.forma;
   S.cargasEq={n:S.ncargas,lin:[1,2,3,4,5,6,7,8].map(k=>e["c_p"+k]),rep:e.c_rep,exc:e.c_exc,excIni:e.c_exc_ini,ini:[e.c_min,e.c_mitad,e.c_max]};
   S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]};
   S.equipoId=e.id; S.clienteId=e.cliente_id; if(e.contacto_id) aplicarContacto(e.contacto_id); cambio();
@@ -598,19 +600,24 @@ ambiente(){
     h("p",{cls:"hint"},"La corrección del termohigrómetro la aplica la plantilla HC-01 al recibir los datos.")];
 },
 iniciales(){
-  const eq=calcEquipo(S); const u=unidad();
+  const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma];
   if(!eq.iniciales.length) return [h("h2",{},"Pruebas iniciales"),h("div",{cls:"note"},"Complete Max, d, alcance y N° de cargas en el paso Servicio.")];
   function actIni(){ let fuera=false, alguno=false; eq.iniciales.forEach((L,i)=>{ const tr=document.getElementById("ir"+i); const v=S.errIni[i]; const M=emt(L,eq); const E=v===null?null:r6(v-L);
       if(E!==null){alguno=true; if(Math.abs(E)>M) fuera=true;}
-      if(tr){ tr.children[3].textContent=E===null?"—":fmt(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); } });
+      if(tr){ tr.children[3].textContent=E===null?"—":fmtL(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); } });
     const n=document.getElementById("iniNota"); if(n) n.replaceChildren(alguno?h("div",{cls:"note"+(fuera?" bad":" ok")},fuera?"Hay errores fuera del EMT. Se sugiere ajuste.":"Errores dentro del EMT."," Criterio provisional: EMT en servicio. Pendiente de confirmar por el laboratorio."):""); }
   setTimeout(actIni,0);
   const autoriza = S.previas[8]==="Sí"||S.previas[6]==="Sí";
   const pos=[1,2,3,4,5,6,7];
   return [h("h2",{},"Pruebas iniciales antes del ajuste"),
-    h("h3",{},"Excentricidad inicial · carga "+fmtL(eq.excIni)+" "+u),
-    FORMAS[S.forma]?.sinExc?h("p",{cls:"hint"},"No aplica para "+FORMAS[S.forma].nombre.toLowerCase()+"."):FORMAS[S.forma]?h("div",{cls:"grid"},...FORMAS[S.forma].pos.map((_,i)=>campoNum("Posición "+(i+1),()=>S.eccIni[i],v=>S.eccIni[i]=v,{id:"f-ei"+i,lect:true,check:multD,lect:true}))):h("div",{cls:"note"},"Seleccione primero la forma del receptor en el paso Excentricidad."),
-    h("h3",{},"Errores de indicación"),
+    h("h3",{},"1. Excentricidad inicial"+(F&&!F.sinExc?" · carga "+fmtL(eq.excIni)+" "+u:"")),
+    !F?h("div",{},h("p",{cls:"lead"},"Seleccione la forma del receptor de carga. Define las posiciones de la prueba y se usa también en Excentricidad."),selectorForma())
+     :h("div",{style:"display:grid;gap:12px"},h("details",{cls:"grp"},h("summary",{},"Forma del receptor: "+F.nombre+" · cambiar"),selectorForma()),
+       F.sinExc?h("div",{cls:"note ok"},"Para "+F.nombre.toLowerCase()+" no se aplica prueba de excentricidad. En la HC-01 se registrará N/A.")
+       :h("div",{cls:"ecc"},h("div",{cls:"plate",id:"plateIni"},formaSVG(S.forma,S.eccIni)),
+          h("div",{cls:"grid"},...F.pos.map((_,i)=>campoNum("Posición "+(i+1),()=>S.eccIni[i],v=>S.eccIni[i]=v,{id:"f-ei"+i,lect:true,check:multD,
+            after:()=>{ document.querySelector('#plateIni [data-p="'+(i+1)+'"]')?.classList.toggle("filled",S.eccIni[i]!==null); }}))))),
+    h("h3",{},"2. Errores de indicación (Mín, ½ Max, Max)"),
     h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Punto"),h("th",{},"Carga ("+u+")"),h("th",{},"Indicación"),h("th",{},"Error"),h("th",{cls:"hide-sm"},"EMT ±"),h("th",{},""))),
       h("tbody",{},...eq.iniciales.map((L,i)=>{ const {i:inp,msg}=inputNum(()=>S.errIni[i],v=>S.errIni[i]=v,{id:"f-ie"+i,check:multD,lect:true,after:actIni}); const M=emt(L,eq);
         return h("tr",{id:"ir"+i},h("td",{cls:"l"},["Mín","½ Max","Max"][i]),h("td",{cls:"mono"},fmtL(L)),h("td",{},inp,msg),h("td",{cls:"mono"}),h("td",{cls:"mono hide-sm"},fmt(M)),h("td",{})); })))),
@@ -663,7 +670,7 @@ linealidad(){
         const tr=h("tr",{id:"lr"+i},h("td",{cls:"l"},String(i+1)),h("td",{cls:"mono"},fmtL(c)),h("td",{},inp,msg),h("td",{cls:"mono"}),h("td",{cls:"mono hide-sm"},fmt(emt(c,eq))),h("td",{}));
         setTimeout(()=>actualizarFila(i),0); return tr; }))))];
   function actualizarFila(i){ const tr=document.getElementById("lr"+i); if(!tr) return; const c=eq.cargas[i], v=S.lin[i], M=emt(c,eq); const E=v===null?null:r6(v-c);
-    tr.children[3].textContent=E===null?"—":fmt(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); }
+    tr.children[3].textContent=E===null?"—":fmtL(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); }
 },
 repetibilidad(){
   const eq=calcEquipo(S); const u=unidad(); const min3=repMin3(eq);
@@ -675,7 +682,7 @@ repetibilidad(){
 },
 excentricidad(){
   const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma]; const n=F?F.pos.length:0;
-  const picker=h("div",{cls:"formas"},...Object.entries(FORMAS).map(([k,f])=>h("button",{type:"button",cls:"forma"+(S.forma===k?" on":""),"aria-pressed":S.forma===k,on:{click:()=>{S.forma=k;cambio();render();}}},formaSVG(k,null),h("span",{},f.nombre),h("small",{},f.sinExc?"No aplica excentricidad":f.pos.length+" posiciones"))));
+  const picker=selectorForma();
   if(!F) return [h("h2",{},"Excentricidad"),h("p",{cls:"lead"},"Seleccione la forma del receptor de carga. Se marcará en la HC-01 y define las posiciones de la prueba."),picker];
   return [h("h2",{},"Excentricidad"),
     h("details",{cls:"grp"},h("summary",{},"Forma del receptor: "+F.nombre+" · cambiar"),picker),
