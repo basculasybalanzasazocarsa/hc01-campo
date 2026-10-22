@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 1610-1702</small></div>
+      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 2210-1414</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -146,7 +146,7 @@ const TIPOS_EQ = ["Balanza Electrónica","Báscula Electrónica","Sistema de Pes
 const TIPO_SERV = ["calibración N°","calibración N° mod.","verificación","mantenimiento"];
 const PREGUNTAS = ["¿Las funciones y componentes del equipo operan adecuadamente para realizar la calibración?","¿El cliente establece las cargas de interés en la prueba de linealidad?","¿Se realiza alguna desviación al procedimiento?","¿La calibración se realiza con el dispositivo de retorno a cero activado?","¿El cliente realiza ajuste de usuario al instrumento?","¿El cliente tiene definido un procedimiento para realizar el ajuste de usuario?","¿El cliente solicita el ajuste de usuario y calibración del instrumento según su periodicidad?","¿El cliente solicita se realice el ajuste con sus pesas?","¿El ajuste de usuario es realizado por el laboratorio previa autorización del cliente?","¿La calibración se realiza en las instalaciones del Laboratorio Azocar?"];
 const COMPONENTES = ["Indicador / Pantalla de lectura","Receptor de carga","Botones / Membrana","Batería","Sistema de carga","Tarjeta principal","Adaptador de corriente 110 V","Cable de alimentación 110 V","Estructura","Celda de carga","Patas / Ruedas","Caja sumadora","Cobertor"];
-const PASOS = [["servicio","Servicio"],["previas","Condiciones previas"],["ambiente","Ambiente inicial"],["iniciales","Pruebas iniciales"],["pesas","Cargas y pesas"],["linealidad","Linealidad"],["repetibilidad","Repetibilidad"],["excentricidad","Excentricidad"],["cierre","Cierre"],["envio","Revisar y enviar"]];
+const PASOS = [["servicio","Servicio"],["previas","Condiciones previas"],["ambiente","Llegada"],["iniciales","Pruebas iniciales"],["pesas","Cargas y pesas"],["linealidad","Linealidad"],["repetibilidad","Repetibilidad"],["excentricidad","Excentricidad"],["cierre","Cierre"],["envio","Revisar y enviar"]];
 
 /* ---------- números: coma decimal, espacio de miles ---------- */
 function parseNum(s){ if(s===null||s===undefined) return null; s=String(s).replace(/[\s  ]/g,"").replace(",","."); if(s===""||s==="-") return null; const n=Number(s); return isFinite(n)?n:NaN; }
@@ -189,9 +189,9 @@ function calcBase(s){
   }
   return out;
 }
-// Repetibilidad: con carga mayor a 100 kg se hacen 3 repeticiones; si no, 5 (la plantilla usa N/A en AW58:AW59 para 3)
-function repMin3(eq){ const c=eq&&eq.rep; if(typeof c!=="number") return false; const kg=(S.unidad==="kg")?c:c/1000; return kg>100; }
-function nRep(eq){ return repMin3(eq)&&S.rep[3]===null&&S.rep[4]===null?3:5; } // con >100 kg: mínimo 3; si se anotan la 4ª y 5ª, se usan las 5
+// Repetibilidad: con carga mayor o igual a 100 kg (PC-I 7.4) se permiten 3 repeticiones; si no, 5 (la plantilla usa N/A en AW58:AW59 para 3)
+function repMin3(eq){ const c=eq&&eq.rep; if(typeof c!=="number") return false; const kg=(S.unidad==="kg")?c:c/1000; return kg>=100-1e-9; }
+function nRep(eq){ return repMin3(eq)&&S.rep[3]===null&&S.rep[4]===null?3:5; } // con ≥100 kg: mínimo 3; si se anotan la 4ª y 5ª, se usan las 5
 function calcEquipo(s){
   const b=calcBase(s); const cm=s.cm||{}; const ov=(v,o)=> (o===null||o===undefined||v==="N/A") ? v : o;
   b.excIni=b.exc;
@@ -307,6 +307,21 @@ function inputNum(get,set,opts={}){
   setTimeout(validar,0); i._msg=msg; return {i,msg};
 }
 function campoNum(lbl,get,set,opts={}){ const {i,msg}=inputNum(get,set,opts); return h("label",{cls:"f"},lbl,i,opts.hint?h("span",{cls:"hint"},opts.hint):null,msg); }
+function bloqueInicio(){
+  const ahora=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
+  const m=(()=>{ if(!S.llegada||!S.inicio) return null; const [a,b]=S.llegada.split(":").map(Number),[c,d]=S.inicio.split(":").map(Number); return (c*60+d)-(a*60+b); })();
+  return h("div",{style:"display:grid;gap:12px;margin-top:8px;border-top:1px solid var(--line);padding-top:12px"},
+    h("h3",{},"3. Inicio de la calibración y condiciones ambientales iniciales"),
+    h("p",{cls:"lead"},"Registre el inicio una vez terminada la prueba inicial o el ajuste (PC-I 5.3, Nota 1), junto con la temperatura y la humedad del termohigrómetro."),
+    h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",disabled:!S.llegada,on:{click:()=>{S.inicio=ahora();cambio();render();}}},S.inicio?"Inicio "+S.inicio+" · actualizar":"Iniciar calibración")),
+    !S.llegada?h("div",{cls:"note"},"Primero registre la hora de llegada en el paso Llegada."):null,
+    m!==null?h("div",{cls:"note"+(m>=30?" ok":"")},m>=30?`Tiempo de ambientación: ${m} min.`:`Tiempo de ambientación: ${m} min. Es menor a 30 minutos.`):null,
+    h("div",{cls:"grid"},
+      campoSel("Termohigrómetro",HIGRO.map(n=>[String(n),"AZN-"+String(n).padStart(2,"0")]),()=>S.higro,v=>S.higro=v,{id:"f-hig"}),
+      campoNum("Temperatura inicial (°C)",()=>S.t0,v=>S.t0=v,{id:"f-t0",check:v=>v<15||v>40?{t:"Fuera de 15 °C a 40 °C (antes de corrección).",lvl:"warn"}:null}),
+      campoNum("Humedad inicial (%)",()=>S.h0,v=>S.h0=v,{id:"f-h0",check:v=>v<30||v>90?{t:"Fuera de 30 % a 90 % (antes de corrección).",lvl:"warn"}:null})),
+    h("p",{cls:"hint"},"La corrección del termohigrómetro la aplica la plantilla HC-01 al recibir los datos."));
+}
 function selectorForma(){ return h("div",{cls:"formas"},...Object.entries(FORMAS).map(([k,f])=>h("button",{type:"button",cls:"forma"+(S.forma===k?" on":""),"aria-pressed":S.forma===k,on:{click:()=>{S.forma=k;cambio();render();}}},formaSVG(k,null),h("span",{},f.nombre),h("small",{},f.sinExc?"No aplica excentricidad":f.pos.length+" posiciones")))); }
 function seg(opciones,get,set,after){ const w=h("div",{cls:"seg",role:"group"}); opciones.forEach(o=>{ const b=h("button",{type:"button",cls:get()===o?"on":"",on:{click:()=>{set(get()===o?"":o); [...w.children].forEach(x=>x.classList.toggle("on",x.textContent===get())); cambio(); if(after) after();}}},o); w.append(b);}); return w; }
 const multD = v => { const eq=calcEquipo(S); const d=S.d; if(!d) return null; const k=Math.round(v/d); return Math.abs(v-k*d)>d*1e-6 ? {t:"No es múltiplo de d = "+fmt(d)+" "+S.unidad+". Verifique la lectura.",lvl:"warn"} : null; };
@@ -420,6 +435,26 @@ async function guardarEquipoDelServicio(){
   if(!S.contactoId && S.bd.encargado){ const k={id:idTemporal(),cliente_id:S.clienteId,nombre:S.bd.encargado,area:"",cargo:"",correo:S.bd.correo,telefono:S.bd.telefono,activo:"Sí"}; await guardarReg("contacto",k); S.contactoId=k.id; }
   const e=equipoDesdeServicio(); S.equipoId=e.id; await guardarReg("equipo",e); cambio(); render();
 }
+function sinTilde(v){ return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
+// Selector con búsqueda: escribe y elige de la lista filtrada (cliente por nombre, equipo por código, serie o marca)
+let comboQ={};
+function comboBuscar(key,lbl,items,selId,onPick,ph){
+  const editando=comboQ[key]!==undefined, sel=items.find(x=>x[0]===selId);
+  const q=sinTilde(comboQ[key]||"").trim();
+  const inp=h("input",{id:"cb-"+key,autocomplete:"off",placeholder:ph,value:editando?comboQ[key]:(sel?sel[1]:""),
+    on:{focus:e=>{ if(comboQ[key]===undefined){ comboQ[key]=""; render(); const i=document.getElementById("cb-"+key); if(i) i.focus(); } },
+        input:e=>{ comboQ[key]=e.target.value; const pos=e.target.selectionStart; render(); const i=document.getElementById("cb-"+key); if(i){ i.focus(); i.setSelectionRange(pos,pos); } }}});
+  let lista=null;
+  if(editando){
+    const res=items.filter(x=>!q||sinTilde(x[1]+" "+(x[2]||"")).includes(q)).slice(0,25);
+    lista=h("div",{cls:"list",style:"max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px"},
+      ...res.map(x=>h("button",{type:"button",cls:"btn",style:"text-align:left;justify-content:flex-start;width:100%;font-weight:500",on:{click:()=>{ delete comboQ[key]; onPick(x[0]); cambio(); render(); }}},x[1],x[2]?h("span",{cls:"hint",style:"display:block"},x[2]):null)),
+      !res.length?h("p",{cls:"hint"},"Sin resultados."):null,
+      h("button",{type:"button",cls:"btn",style:"width:100%",on:{click:()=>{ delete comboQ[key]; render(); }}},"Cerrar"));
+  }
+  return h("div",{style:"display:grid;gap:6px"},h("label",{cls:"f"},lbl,inp),lista);
+}
+function sinTilde(v){ return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
 function selectorBase(){
   const clientes=BASE.clientes.slice().sort((a,b)=>String(a.nombre).localeCompare(b.nombre));
   const eqs=S.clienteId?equiposDe(S.clienteId):[];
@@ -427,8 +462,8 @@ function selectorBase(){
     h("div",{cls:"row",style:"justify-content:space-between"},h("b",{},"Cliente y equipo desde la base"),h("span",{cls:"hint"},BASE.equipos.length+" equipos · "+(PEND.length?PEND.length+" cambio(s) por subir":(BASE.actualizado?"sincronizada":"sin descargar")))),
     cajaClave(),
     h("div",{cls:"grid"},
-      campoSel("Cliente",clientes.map(c=>[c.id,c.nombre]),()=>S.clienteId||"",v=>{ S.clienteId=v||null; S.equipoId=null; S.contactoId=null; const c=BASE.clientes.find(x=>x.id===v); if(c) Object.assign(S.bd,{cliente:c.nombre,direccion:c.direccion}); },{id:"f-bcli",after:()=>render()}),
-      S.clienteId?campoSel("Equipo",eqs.map(e=>[e.id,etiquetaEq(e)]),()=>S.equipoId||"",v=>{ const e=BASE.equipos.find(x=>x.id===v); if(e) aplicarEquipo(e); else S.equipoId=null; },{id:"f-beq",after:()=>render()}):null,
+      comboBuscar("cli","Cliente",clientes.map(c=>[c.id,c.nombre,c.direccion||""]),S.clienteId,v=>{ S.clienteId=v||null; S.equipoId=null; S.contactoId=null; const c=BASE.clientes.find(x=>x.id===v); if(c) Object.assign(S.bd,{cliente:c.nombre,direccion:c.direccion}); },"Escriba el nombre del cliente…"),
+      S.clienteId?comboBuscar("eq","Equipo ("+eqs.length+")",eqs.map(e=>[e.id,etiquetaEq(e),""]),S.equipoId,v=>{ const e=BASE.equipos.find(x=>x.id===v); if(e) aplicarEquipo(e); else S.equipoId=null; },"Código, serie o marca…"):null,
       S.clienteId?campoSel("Solicitante (quien pidió el servicio)",contactosDe(S.clienteId).map(k=>[k.id,etiquetaCon(k)]).concat([["__nuevo","+ Nuevo contacto…"]]),()=>S.contactoId||"",v=>{ if(v==="__nuevo"){ S.nuevoContacto={nombre:"",area:"",cargo:"",correo:"",telefono:""}; } else { S.nuevoContacto=null; aplicarContacto(v); } },{id:"f-bcon",after:()=>render()}):null),
     S.nuevoContacto?h("div",{cls:"grp",style:"border:1px dashed var(--line);border-radius:8px;padding:10px;display:grid;gap:8px"},h("b",{},"Nuevo contacto de "+S.bd.cliente),
       h("div",{cls:"grid"},...[["nombre","Nombre"],["area","Área"],["cargo","Cargo"],["correo","Correo"],["telefono","Teléfono"]].map(([k,l])=>campoTexto(l,()=>S.nuevoContacto[k],v=>S.nuevoContacto[k]=v,{id:"f-nc-"+k}))),
@@ -586,18 +621,10 @@ previas(){
 },
 ambiente(){
   const ahora=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
-  const mins=()=>{ if(!S.llegada||!S.inicio) return null; const [a,b]=S.llegada.split(":").map(Number),[c,d]=S.inicio.split(":").map(Number); return (c*60+d)-(a*60+b); };
-  const m=mins();
-  return [h("h2",{},"Condiciones ambientales iniciales"),
+  return [h("h2",{},"Hora de llegada"),
     h("div",{cls:"row"},
-      h("button",{cls:"btn",type:"button",on:{click:()=>{S.llegada=ahora();cambio();render();}}},S.llegada?"Llegada "+S.llegada+" · actualizar":"Registrar hora de llegada"),
-      h("button",{cls:"btn pri",type:"button",disabled:!S.llegada,on:{click:()=>{S.inicio=ahora();cambio();render();}}},S.inicio?"Inicio "+S.inicio+" · actualizar":"Iniciar calibración")),
-    m!==null?h("div",{cls:"note"+(m>=30?" ok":"")},m>=30?`Tiempo de ambientación: ${m} min.`:`Tiempo de ambientación: ${m} min. Es menor a 30 minutos.`):h("p",{cls:"lead"},"La hora de llegada inicia el tiempo de ambientación. El inicio de calibración se registra al empezar las pruebas."),
-    h("div",{cls:"grid"},
-      campoSel("Termohigrómetro",HIGRO.map(n=>[String(n),"AZN-"+String(n).padStart(2,"0")]),()=>S.higro,v=>S.higro=v,{id:"f-hig"}),
-      campoNum("Temperatura inicial (°C)",()=>S.t0,v=>S.t0=v,{id:"f-t0",check:v=>v<15||v>40?{t:"Fuera de 15 °C a 40 °C (antes de corrección).",lvl:"warn"}:null}),
-      campoNum("Humedad inicial (%)",()=>S.h0,v=>S.h0=v,{id:"f-h0",check:v=>v<30||v>90?{t:"Fuera de 30 % a 90 % (antes de corrección).",lvl:"warn"}:null})),
-    h("p",{cls:"hint"},"La corrección del termohigrómetro la aplica la plantilla HC-01 al recibir los datos.")];
+      h("button",{cls:"btn pri",type:"button",on:{click:()=>{S.llegada=ahora();cambio();render();}}},S.llegada?"Llegada "+S.llegada+" · actualizar":"Registrar hora de llegada")),
+    h("p",{cls:"lead"},"La hora de llegada inicia el tiempo de ambientación. La hora de inicio de la calibración, el termohigrómetro y las condiciones ambientales iniciales se registran al final de Pruebas iniciales (PC-I 5.3, Nota 1).")];
 },
 iniciales(){
   const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma];
@@ -632,7 +659,8 @@ iniciales(){
     S.ajuste==="Sí"?h("div",{cls:"grid"},
       campoNum("Valor de carga de ajuste ("+u+")",()=>S.cargaAjuste,v=>S.cargaAjuste=v,{id:"f-caj",check:v=>S.max&&v>S.max?{t:"Mayor que Max."}:null}),
       ...eq.iniciales.map((L,i)=>campoNum("Después de ajuste · "+["Mín","½ Max","Max"][i]+" ("+fmtL(L)+")",()=>S.postAjuste[i],v=>S.postAjuste[i]=v,{id:"f-pa"+i,check:multD,lect:true}))):null,
-    S.ajuste==="No"?h("p",{cls:"hint"},"Se registrará N/A en los resultados después de ajuste."):null];
+    S.ajuste==="No"?h("p",{cls:"hint"},"Se registrará N/A en los resultados después de ajuste."):null,
+    bloqueInicio()];
 },
 pesas(){
   const eq=calcEquipo(S); const u=unidad();
@@ -681,7 +709,7 @@ repetibilidad(){
   const eq=calcEquipo(S); const u=unidad(); const min3=repMin3(eq);
   const v=S.rep.filter(x=>x!==null); const prom=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
   const sd=v.length>1?Math.sqrt(v.reduce((a,b)=>a+(b-prom)**2,0)/(v.length-1)):null; const dif=v.length?Math.max(...v)-Math.min(...v):null;
-  return [h("h2",{},"Repetibilidad"),h("p",{cls:"lead"},min3?"Carga mayor a 100 kg: mínimo 3 lecturas con la misma carga, retirándola entre cada lectura. La 4ª y la 5ª son opcionales: anote las dos o déjelas vacías (en la HC quedan como N/A).":"Cinco lecturas con la misma carga, retirándola entre cada lectura."),
+  return [h("h2",{},"Repetibilidad"),h("p",{cls:"lead"},min3?"Carga mayor o igual a 100 kg: mínimo 3 lecturas con la misma carga, retirándola entre cada lectura. La 4ª y la 5ª son opcionales: anote las dos o déjelas vacías (en la HC quedan como N/A).":"Cinco lecturas con la misma carga, retirándola entre cada lectura."),
     h("div",{cls:"calc"},h("div",{},h("span",{},"Carga"),h("b",{},eq.rep?fmtL(eq.rep)+" "+u:"—")),h("div",{},h("span",{},"Desv. estándar"),h("b",{},sd===null?"—":fmt(r6(sd)))),h("div",{},h("span",{},"Diferencia máx."),h("b",{},dif===null?"—":fmt(r6(dif))))),
     h("div",{cls:"grid"},...S.rep.map((_,i)=>campoNum((i+1)+"ª lectura"+(min3&&i>=3?" (opcional)":""),()=>S.rep[i],x=>S.rep[i]=x,{id:"f-r"+i,check:multD,lect:true})))];
 },
@@ -760,7 +788,7 @@ function pendientes(){
   if(S.tipo==="calibración N° mod."&&!S.motivo) f.push([0,"motivo de la corrección"]);
   if(S.previas.some(x=>!x)) f.push([1,S.previas.filter(x=>!x).length+" condiciones previas"]);
   if(S.comp.some(c=>!c.tiene||(c.tiene==="Sí"&&!c.estado))) f.push([1,"inspección de componentes"]);
-  if(!S.llegada||!S.inicio) f.push([2,"hora de llegada e inicio"]); if(!S.higro) f.push([2,"termohigrómetro"]); if(S.t0===null||S.h0===null) f.push([2,"temperatura y humedad iniciales"]);
+  if(!S.llegada) f.push([2,"hora de llegada"]); if(!S.higro) f.push([3,"termohigrómetro"]); if(!S.inicio) f.push([3,"hora de inicio de la calibración"]); if(S.t0===null||S.h0===null) f.push([3,"temperatura y humedad iniciales"]);
   if(!FORMAS[S.forma]||S.eccIni.slice(0,FORMAS[S.forma].pos.length).some(x=>x===null)||S.errIni.some(x=>x===null)) f.push([3,"lecturas iniciales"]);
   if(!S.ajuste) f.push([3,"indicar si se realizó ajuste"]);
   if(S.ajuste==="Sí"&&(S.cargaAjuste===null||S.postAjuste.some(x=>x===null))) f.push([3,"resultados después de ajuste"]);

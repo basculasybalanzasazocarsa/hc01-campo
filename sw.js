@@ -1,6 +1,6 @@
 /* sw.js — guarda la app en el teléfono para que abra sin internet.
-   Versión: d38ae570 (cambia sola cada vez que se publica una versión nueva de index.html) */
-const CACHE = "hc01-d38ae570";
+   Versión: 64bcf207 (cambia sola cada vez que se publica una versión nueva de index.html) */
+const CACHE = "hc01-64bcf207";
 const ARCHIVOS = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
