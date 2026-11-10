@@ -8,7 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>HC-01 Campo</title>
+<title>Calibración IPFNA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">HC-01 Campo<small>PC-I-F1 · Toma de datos balanzas · app 2210-1414</small></div>
+      <div class="brand">Calibración IPFNA<small><span id="subHC">HC-01 · PC-I-F1 balanzas</span> · app 1011-1334</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -264,7 +264,7 @@ function hoy(){ const d=new Date(); return {d:d.getDate(),m:d.getMonth()+1,a:d.g
 function nuevoUid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function nuevo(ejemplo){
   const f=hoy();
-  const s={uid:nuevoUid(), id:"", ejemplo:!!ejemplo, fecha:f, llegada:null, inicio:null, tipo:"calibración N°", motivo:"", tecnico:"", pgvi:"", consec:null, sufijo:"", cm:{lin:Array(8).fill(null),rep:null,exc:null,ini:[null,null,null]},
+  const s={uid:nuevoUid(), plantilla:"HC-01", id:"", ejemplo:!!ejemplo, fecha:f, llegada:null, inicio:null, tipo:"calibración N°", motivo:"", tecnico:"", pgvi:"", consec:null, sufijo:"", cm:{lin:Array(8).fill(null),rep:null,exc:null,ini:[null,null,null]},
     bd:{codigo:"",procedimiento:"PC-I",direccion:"",equipo:"Balanza Electrónica",cliente:"",marca:"",modelo:"",serie:"",periodo:12,ubicacion:"",lugar:"",correo:"",telefono:"",encargado:""},
     max:null,d:null,unidad:"g",alcance:null,ncargas:"5",
     previas:Array(10).fill(""), comp:COMPONENTES.map(()=>({tiene:"",estado:""})),
@@ -312,7 +312,7 @@ function bloqueInicio(){
   const m=(()=>{ if(!S.llegada||!S.inicio) return null; const [a,b]=S.llegada.split(":").map(Number),[c,d]=S.inicio.split(":").map(Number); return (c*60+d)-(a*60+b); })();
   return h("div",{style:"display:grid;gap:12px;margin-top:8px;border-top:1px solid var(--line);padding-top:12px"},
     h("h3",{},"3. Inicio de la calibración y condiciones ambientales iniciales"),
-    h("p",{cls:"lead"},"Registre el inicio una vez terminada la prueba inicial o el ajuste (PC-I 5.3, Nota 1), junto con la temperatura y la humedad del termohigrómetro."),
+    h("p",{cls:"lead"},"Registre el inicio una vez terminada la prueba inicial o el ajuste ("+(esH2()?"PC-II":"PC-I 5.3, Nota 1")+"), junto con la temperatura y la humedad del termohigrómetro."),
     h("div",{cls:"row"},h("button",{cls:"btn pri",type:"button",disabled:!S.llegada,on:{click:()=>{S.inicio=ahora();cambio();render();}}},S.inicio?"Inicio "+S.inicio+" · actualizar":"Iniciar calibración")),
     !S.llegada?h("div",{cls:"note"},"Primero registre la hora de llegada en el paso Llegada."):null,
     m!==null?h("div",{cls:"note"+(m>=30?" ok":"")},m>=30?`Tiempo de ambientación: ${m} min.`:`Tiempo de ambientación: ${m} min. Es menor a 30 minutos.`):null,
@@ -320,7 +320,7 @@ function bloqueInicio(){
       campoSel("Termohigrómetro",HIGRO.map(n=>[String(n),"AZN-"+String(n).padStart(2,"0")]),()=>S.higro,v=>S.higro=v,{id:"f-hig"}),
       campoNum("Temperatura inicial (°C)",()=>S.t0,v=>S.t0=v,{id:"f-t0",check:v=>v<15||v>40?{t:"Fuera de 15 °C a 40 °C (antes de corrección).",lvl:"warn"}:null}),
       campoNum("Humedad inicial (%)",()=>S.h0,v=>S.h0=v,{id:"f-h0",check:v=>v<30||v>90?{t:"Fuera de 30 % a 90 % (antes de corrección).",lvl:"warn"}:null})),
-    h("p",{cls:"hint"},"La corrección del termohigrómetro la aplica la plantilla HC-01 al recibir los datos."));
+    h("p",{cls:"hint"},"La corrección del termohigrómetro la aplica la plantilla "+hcNombre()+" al recibir los datos."));
 }
 function selectorForma(){ return h("div",{cls:"formas"},...Object.entries(FORMAS).map(([k,f])=>h("button",{type:"button",cls:"forma"+(S.forma===k?" on":""),"aria-pressed":S.forma===k,on:{click:()=>{S.forma=k;cambio();render();}}},formaSVG(k,null),h("span",{},f.nombre),h("small",{},f.sinExc?"No aplica excentricidad":f.pos.length+" posiciones")))); }
 function seg(opciones,get,set,after){ const w=h("div",{cls:"seg",role:"group"}); opciones.forEach(o=>{ const b=h("button",{type:"button",cls:get()===o?"on":"",on:{click:()=>{set(get()===o?"":o); [...w.children].forEach(x=>x.classList.toggle("on",x.textContent===get())); cambio(); if(after) after();}}},o); w.append(b);}); return w; }
@@ -414,16 +414,20 @@ function aplicarEquipo(e){
   const n=v=>{ const x=parseNum(v); return Number.isNaN(x)?null:x; };
   S.max=n(e.max); S.d=n(e.d); S.unidad=e.unidad||"g"; S.alcance=n(e.alcance)??S.max; { const k=[1,2,3,4,5,6,7,8].filter(i=>typeof n(e["c_p"+i])==="number").length; S.ncargas=String(k>=5&&k<=8?k:(e.ncargas||"5")); } // el N° de cargas sale de las cargas guardadas
   if(e.forma&&FORMAS[e.forma]) S.forma=e.forma;
+  if(/PC-II/.test(e.procedimiento||"")||TIPOS_EQ2.includes(e.tipo)){ S.plantilla="HC-02"; H2(); S.unidad="kg"; const ap=/^apoyos:(\d+)/.exec(e.forma||""); if(ap) S.h2.apoyos=+ap[1]; S.h2.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null}; }
   S.cargasEq={n:S.ncargas,lin:[1,2,3,4,5,6,7,8].map(k=>e["c_p"+k]),rep:e.c_rep,exc:e.c_exc,excIni:e.c_exc_ini,ini:[e.c_min,e.c_mitad,e.c_max]};
   S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]};
+  // Si el técnico eligió HC-02, se mantiene aunque el equipo venga de la base como PC-I (sus cargas guardadas son de PC-I y no se usan)
+  if(S.plantilla==="HC-02"){ H2(); S.unidad="kg"; S.bd.procedimiento="PC-II"; if(!TIPOS_EQ2.includes(S.bd.equipo)) S.bd.equipo=TIPOS_EQ2[0];
+    if(!/PC-II/.test(e.procedimiento||"")){ S.cargasEq=null; S.ncargas="8"; } }
   S.equipoId=e.id; S.clienteId=e.cliente_id; if(e.contacto_id) aplicarContacto(e.contacto_id); cambio();
 }
 function equipoDesdeServicio(){
-  const eq=calcEquipo(S); const nv=v=>typeof v==="number"?v:"N/A";
+  const eq=esH2()?(()=>{ const c=calcH2(); return {...c,iniciales:["N/A","N/A","N/A"]}; })():calcEquipo(S); const nv=v=>typeof v==="number"?v:"N/A";
   const cid=S.clienteId||"";
   const id=S.equipoId||idTemporal();
   return {id,cliente_id:cid,codigo:normCodigo(S.bd.codigo),tipo:S.bd.equipo,marca:S.bd.marca,modelo:S.bd.modelo,serie:S.bd.serie,periodo:S.bd.periodo??0,ubicacion:S.bd.ubicacion,lugar:S.bd.lugar,
-    intervalo:S.max?`(0 a ${S.max})`:"",max:S.max,d:S.d,unidad:S.unidad,alcance:S.alcance,ncargas:Number(S.ncargas),procedimiento:S.bd.procedimiento||"PC-I",forma:S.forma||"",
+    intervalo:S.max?`(0 a ${S.max})`:"",max:S.max,d:S.d,unidad:S.unidad,alcance:S.alcance,ncargas:Number(S.ncargas),procedimiento:S.bd.procedimiento||"PC-I",forma:esH2()?("apoyos:"+(H2().apoyos||"")):(S.forma||""),
     c_min:nv(eq.iniciales[0]),c_mitad:nv(eq.iniciales[1]),c_max:nv(eq.iniciales[2]),c_exc_ini:nv(eq.excIni),
     ...Object.fromEntries([0,1,2,3,4,5,6,7].map(i=>["c_p"+(i+1),nv(eq.cargas[i])])),c_rep:nv(eq.rep),c_exc:nv(eq.exc),
     contacto_id:S.contactoId||""};
@@ -503,7 +507,7 @@ async function guardarEquipoBase(e,nuevo,otro,forzar){
   render(); window.scrollTo(0,0);
 }
 function vistaBase(){
-  const q=baseSel.q.toLowerCase();
+  const q=sinTilde(baseSel.q).trim();
   const out=[h("h2",{},"Clientes y equipos"),h("p",{cls:"lead"},"Consulte, agregue o corrija clientes y equipos. Los cambios se guardan en la base del laboratorio y quedan registrados con el técnico y la fecha."),cajaClave(),
     h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>cargarBase(false)}},"Actualizar base"),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:"__nuevo",equipo:null,q:""};render();}}},"Nuevo cliente"),h("span",{cls:"hint"},baseMsg||((BASE.actualizado?"Copia del "+new Date(BASE.actualizado).toLocaleString("es-NI")+(BASE.tecnico?" · código de "+BASE.tecnico:""):"Base aún no descargada")))),
     PEND.length?h("div",{cls:"note"},h("b",{},estadoSync()),h("div",{cls:"row",style:"margin-top:6px"},h("button",{cls:"btn",type:"button",on:{click:async()=>{ baseMsg="Subiendo…"; render(); await subirPendientes(); baseMsg=PEND.length?"No se pudo subir. "+estadoSync():"Todo quedó guardado en la base."; render(); }}},"Reintentar subir"))):null];
@@ -532,7 +536,7 @@ function vistaBase(){
     const e=nuevo?baseSel.borrador:{...BASE.equipos.find(x=>x.id===baseSel.equipo)};
     const lbl={codigo:"Código",tipo:"Tipo de equipo",marca:"Marca",modelo:"Modelo",serie:"Serie",periodo:"Periodo (meses)",ubicacion:"Ubicación",lugar:"Lugar de calibración",intervalo:"Intervalo de medida",max:"Capacidad máxima",d:"Resolución (d)",unidad:"Unidad",alcance:"Alcance de trabajo",ncargas:"N° de cargas",forma:"Forma del receptor",
       c_min:"Carga inicial mín",c_mitad:"Carga inicial ½ Max",c_max:"Carga inicial Max",c_exc_ini:"Excentricidad inicial",c_p1:"Linealidad 1",c_p2:"Linealidad 2",c_p3:"Linealidad 3",c_p4:"Linealidad 4",c_p5:"Linealidad 5",c_p6:"Linealidad 6",c_p7:"Linealidad 7",c_p8:"Linealidad 8",c_rep:"Repetibilidad",c_exc:"Excentricidad",contacto_id:"Último solicitante",revisar:"Observación (revisar)"};
-    const campo=k=> k==="tipo"?campoSel(lbl[k],TIPOS_EQ.concat(["Sistema de Pesaje de Tolva"]).filter((v,i,a)=>a.indexOf(v)===i),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
+    const campo=k=> k==="tipo"?campoSel(lbl[k],TIPOS_EQ.concat(["Sistema de Pesaje de Tolva"],TIPOS_EQ2).filter((v,i,a)=>a.indexOf(v)===i),()=>e[k],v=>{ e[k]=v; if(TIPOS_EQ2.includes(v)){ e.procedimiento="PC-II"; e.unidad="kg"; } else if(/PC-II/.test(e.procedimiento||"")) e.procedimiento="PC-I"; },{id:"b-e-"+k})
       : k==="unidad"?campoSel(lbl[k],["g","kg","lb"],()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
       : k==="contacto_id"?campoSel(lbl[k],contactosDe(e.cliente_id,true).map(x=>[x.id,etiquetaCon(x)]),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
       : k==="forma"?campoSel(lbl[k],Object.entries(FORMAS).map(([kk,f])=>[kk,f.nombre]),()=>e[k],v=>e[k]=v,{id:"b-e-"+k})
@@ -552,13 +556,203 @@ function vistaBase(){
       baseMsg?h("p",{cls:"hint"},baseMsg):null);
   } else {
     out.push(h("label",{cls:"f"},"Buscar cliente o equipo",h("input",{id:"b-q",value:baseSel.q,placeholder:"Nombre, código, serie, marca…",on:{input:e=>{baseSel.q=e.target.value;const pos=e.target.selectionStart;render();const i=document.getElementById("b-q");i.focus();i.setSelectionRange(pos,pos);}}})));
-    if(q){ const eqs=BASE.equipos.filter(e=>[e.codigo,e.serie,e.marca,e.modelo,e.lugar,e.tipo].join(" ").toLowerCase().includes(q)).slice(0,40);
+    if(q){ const eqs=BASE.equipos.filter(e=>sinTilde([e.codigo,e.serie,e.marca,e.modelo,e.lugar,e.ubicacion,e.tipo,e.id].join(" ")).includes(q)).slice(0,40);
       out.push(h("div",{cls:"list"},...eqs.map(e=>h("div",{cls:"item"},h("div",{},h("b",{cls:"mono"},e.codigo)," · "+etiquetaEq(e).split(" · ").slice(1).join(" · "),h("div",{cls:"hint"},(BASE.clientes.find(c=>c.id===e.cliente_id)||{}).nombre||"")),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:e.cliente_id,equipo:e.id,q:""};render();}}},"Abrir")))));
     }
-    const cls=BASE.clientes.filter(c=>!q||(String(c.nombre)+" "+String(c.notas||"")+" "+String(c.id)).toLowerCase().includes(q));
+    const cls=BASE.clientes.filter(c=>!q||sinTilde(String(c.nombre)+" "+String(c.notas||"")+" "+String(c.direccion||"")+" "+String(c.id)).includes(q));
     out.push(h("h3",{},"Clientes"),cls.length?h("div",{cls:"list"},...cls.map(c=>h("div",{cls:"item"},h("div",{},h("b",{},c.nombre),h("div",{cls:"hint"},equiposDe(c.id).length+" equipos · "+(c.direccion||""))),h("button",{cls:"btn",type:"button",on:{click:()=>{baseSel={cliente:c.id,equipo:null,q:""};render();}}},"Abrir")))):h("p",{cls:"hint"},BASE.actualizado?"Sin resultados.":"Pulse «Actualizar base» con conexión para descargar los clientes."));
   }
   return out;
+}
+/* ---------- HC-02 básculas camioneras (PC-II-F1, plantilla HC-02 V9) ---------- */
+const HC02_COD = ["H-01", "H-02", "H-03", "H-04", "H-05", "H-06", "H-07", "H-08", "H-09", "H-10", "H-11", "H-12", "H-13", "H-14", "H-15", "H-16", "H-17", "H-18", "H-19", "H-20", "H-21", "H-22", "H-23", "H-24", "H-25", "H-26", "H-27", "H-28", "H-29", "H-30", "H-31", "H-32", "H-33", "G-01", "G-02", "G-03", "G-04", "G-05", "DN-07", "DN-08", "DN-14", "DN-15", "DN-16", "DN-17", "DN-18", "DN-19", "DN-20", "DN-21", "DN-22", "DN-23", "DN-24", "DN-29", "DN-30", "DN-31", "DN-32", "DN-33", "DN-34", "DN-35", "DN-36", "DN-37", "DN-38", "DN-39", "DN-44", "DN-45", "DN-46", "DN-47", "DN-48", "DN-49", "DN-50", "DN-51", "DN-52", "DN-53", "DN-54", "DN-59", "DN-60"]; // pesas con casilla en la Toma de datos de la HC-02
+const PREG2 = ["¿Las funciones y componentes del equipo operan adecuadamente para realizar la calibración?","¿El cliente establece las cargas de interés en la prueba de linealidad?","¿Se realiza alguna desviación al procedimiento?","¿La calibración se realiza con el dispositivo de retorno a cero activado?","¿El cliente realiza ajuste de usuario al instrumento?","¿El cliente tiene definido un procedimiento para realizar el ajuste de usuario?","¿El cliente solicita el ajuste de usuario y calibración del instrumento según su periodicidad?","¿El cliente solicita que se realice el ajuste con una pesa interna?","¿El ajuste de usuario es realizado por el laboratorio previa autorización del cliente?"];
+const COMP2 = ["Indicador","Tarjeta principal","Membrana","Botones","Batería","Cable de alimentación 110 V","Adaptador de corriente","Estructura de plataforma","Nivelación de la plataforma","Celdas de carga","Fosa"];
+const TIPOS_EQ2 = ["Báscula Camionera","Báscula Camionera por ejes"];
+const PROC2 = ["PC-II Calibración de Básculas camioneras (v9)*","PC-II Calibración de Básculas camioneras (v9)**"];
+const esH2 = () => S.plantilla==="HC-02";
+const hcNombre = () => esH2() ? "HC-02" : "HC-01";
+const kgPesa = c => /^H-/.test(c)?1000:/^G-/.test(c)?500:/^DN/.test(c)?20:0;
+function nuevoH2(){ return {apoyos:null,secciones:"3",proc:PROC2[0],previas:Array(9).fill(""),comp:COMP2.map(()=>({tiene:"",estado:""})),
+  excIniE:[null,null,null],excIniS:[null,null,null],cargaIni:null,indIni:null,postAjuste:null,
+  pesas:[],linP:Array(8).fill(null),linS:Array(8).fill(null),lin:Array(8).fill(null),rep:Array(5).fill(null),excE:[null,null,null],excS:[null,null,null],residual:null,
+  cm:{lin:Array(8).fill(null),rep:null,exc:null,excIni:null}}; }
+function H2(){ if(!S.h2) S.h2=nuevoH2(); return S.h2; }
+function cambiarPlantilla(p){
+  if(p===S.plantilla) return; S.plantilla=p;
+  if(p==="HC-02"){ H2(); S.unidad="kg"; S.ncargas="8"; S.bd.procedimiento="PC-II"; if(!TIPOS_EQ2.includes(S.bd.equipo)) S.bd.equipo=TIPOS_EQ2[0]; }
+  else { S.bd.procedimiento="PC-I"; if(!TIPOS_EQ.includes(S.bd.equipo)) S.bd.equipo="Balanza Electrónica"; }
+  cambio(); render();
+}
+// Cargas de la HC-02 (BD X–AH). Puntos como la plantilla; con 7 cargas se usa paso 0,15·alcance (la plantilla trae 0,015).
+function calcH2(){
+  const s=H2(), N=S.max, R=S.alcance, U=+S.ncargas, V=s.apoyos; const o={cargas:[],rep:null,exc:null,excIni:null};
+  if(N>0&&V>1){ o.excIni=r6(Math.abs(N/(V-1))); o.exc=o.excIni; }
+  if(R>0&&[5,6,7,8].includes(U)){ const z={8:.15,7:.15,6:.2,5:.25}[U]*R;
+    const p=[1000,z,2*z,3*z,4*z, U===5?"N/A":U===6?R:5*z, U<=6?"N/A":U===7?R:6*z, U<=7?"N/A":R];
+    o.cargas=p.map(v=>typeof v==="number"?r6(v):v); o.rep=r6(R/2); }
+  const ce=S.cargasEq; const nv=v=>(v===""||v===null||v===undefined)?null:(String(v).toUpperCase()==="N/A"?"N/A":parseNum(v));
+  if(ce&&o.cargas.length){ if(!ce.n||String(ce.n)===String(S.ncargas)) o.cargas=o.cargas.map((c,i)=>{ if(c==="N/A") return c; const v=nv(ce.lin[i]); return v===null||v==="N/A"||Number.isNaN(v)?c:v; });
+    ["rep","exc","excIni"].forEach(k=>{ const v=nv(ce[k]); if(typeof v==="number") o[k]=v; }); }
+  o.sug={cargas:o.cargas.slice(),rep:o.rep,exc:o.exc,excIni:o.excIni};
+  const cm=s.cm, ov=(v,x)=>(x===null||x===undefined||v==="N/A")?v:x;
+  o.cargas=o.cargas.map((c,i)=>ov(c,cm.lin[i])); o.rep=ov(o.rep,cm.rep); o.exc=ov(o.exc,cm.exc); o.excIni=ov(o.excIni,cm.excIni);
+  return o;
+}
+function pesasHG(){ const p=H2().pesas; return {nH:p.filter(c=>/^H-/.test(c)).length,nG:p.filter(c=>/^G-/.test(c)).length}; }
+function totalHG(){ const {nH,nG}=pesasHG(); return nH*1000+nG*500; }
+function maxComponible(kg){ const {nH,nG}=pesasHG(); let best=0; for(let a=Math.min(nH,Math.floor(kg/1000+1e-9));a>=0;a--){ const b=Math.min(nG,Math.floor((kg-a*1000)/500+1e-9)); best=Math.max(best,a*1000+b*500); } return best; }
+const componible = kg => kg>0 && Math.abs(maxComponible(kg)-kg)<1e-6;
+function linPef(i,c){ const s=H2(); return s.linP[i]!==null&&s.linP[i]!==undefined ? s.linP[i] : (typeof c==="number"?maxComponible(c):null); }
+function linSef(i,c){ const s=H2(); if(s.linS[i]!==null&&s.linS[i]!==undefined) return s.linS[i]; const p=linPef(i,c); return typeof c==="number"&&p!==null?r6(Math.max(0,c-p)):null; }
+const cargaIniEf = () => { const s=H2(); return s.cargaIni!==null&&s.cargaIni!==undefined ? s.cargaIni : (totalHG()?Math.min(totalHG(),S.alcance||totalHG()):null); };
+const nSec = () => +H2().secciones||3;
+function nRep2(){ const r=H2().rep; return r[3]===null&&r[4]===null?3:5; }
+function emt2(m){ const b=calcBase(S); return emt(m,b); }
+
+const V2 = {
+previas(){ const s=H2();
+  return [h("h2",{},"Condiciones previas"),
+    h("div",{}, ...PREG2.map((q,i)=>h("div",{cls:"q"},h("p",{},q),seg(["Sí","No","N/A"],()=>s.previas[i],v=>s.previas[i]=v)))),
+    h("h3",{},"Identificación del equipo"),
+    h("p",{cls:"lead"},"Marque si el componente existe y, si existe, su estado."),
+    h("div",{}, ...COMP2.map((c,i)=>h("div",{cls:"q"},h("p",{},c),h("div",{cls:"row"},
+      seg(["Sí","No"],()=>s.comp[i].tiene,v=>{s.comp[i].tiene=v; if(v!=="Sí") s.comp[i].estado="";},()=>render()),
+      s.comp[i].tiene==="Sí"?seg(["Bueno","Regular","Malo"],()=>s.comp[i].estado,v=>s.comp[i].estado=v):null))))];
+},
+iniciales(){ const s=H2(), c=calcH2(), k=nSec();
+  if(!c.excIni) return [h("h2",{},"Pruebas iniciales"),h("div",{cls:"note"},"Complete Max y el N° de puntos de apoyo en el paso Servicio.")];
+  const chk=v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:(v<=0?{t:"Debe ser mayor que 0."}:null);
+  const autoriza = s.previas[8]==="Sí"||s.previas[6]==="Sí";
+  const L=cargaIniEf(), E=(s.indIni!==null&&L!==null)?r6(s.indIni-L):null, M=L?emt2(L):null;
+  return [h("h2",{},"Pruebas iniciales antes del ajuste"),
+    h("h3",{},"1. Excentricidad inicial"),
+    h("div",{cls:"q"},h("p",{},"N° de secciones"),seg(["2","3"],()=>s.secciones,v=>s.secciones=v||"3",()=>render())),
+    campoNum("Carga a aplicar (kg)",()=>s.cm.excIni??c.sug.excIni,v=>s.cm.excIni=(v===null||v===c.sug.excIni)?null:v,{id:"f2-cei",check:chk,hint:"Sugerida Max/(n − 1): "+fmtL(c.sug.excIni)+" kg"}),
+    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Sección"),h("th",{},"Indicación entrada"),h("th",{},"Indicación salida"))),
+      h("tbody",{},...[0,1,2].slice(0,k).map(i=>{ const a=inputNum(()=>s.excIniE[i],v=>s.excIniE[i]=v,{id:"f2-eie"+i,lect:true,check:multD}), b=inputNum(()=>s.excIniS[i],v=>s.excIniS[i]=v,{id:"f2-eis"+i,lect:true,check:multD});
+        return h("tr",{},h("td",{cls:"l"},String(i+1)),h("td",{},a.i,a.msg),h("td",{},b.i,b.msg)); })))),
+    h("h3",{},"2. Error de indicación inicial"),
+    h("div",{cls:"grid"},
+      campoNum("Carga aplicada (kg)",()=>cargaIniEf(),v=>s.cargaIni=v,{id:"f2-ci",check:chk,hint:"PC-II: con el máximo de pesas disponibles."+(totalHG()?" Pesas H y G seleccionadas: "+fmt(totalHG())+" kg":"")}),
+      campoNum("Indicación (kg)",()=>s.indIni,v=>s.indIni=v,{id:"f2-ii",lect:true,check:multD})),
+    E!==null?h("div",{cls:"note"+(M&&Math.abs(E)>M?" bad":" ok")},"Error: "+fmtL(E)+" kg"+(M?" · EMT ± "+fmt(M)+" kg":"")):null,
+    h("div",{cls:"q"},h("p",{},h("b",{},"¿Se realizó ajuste?")),seg(["Sí","No"],()=>S.ajuste,v=>S.ajuste=v,()=>render())),
+    S.ajuste==="Sí"&&!autoriza?h("div",{cls:"note bad"},"En Condiciones previas no consta la autorización del cliente para el ajuste (preguntas 7 y 9)."):null,
+    S.ajuste==="Sí"?campoNum("Indicación después del ajuste (kg)",()=>s.postAjuste,v=>s.postAjuste=v,{id:"f2-pa",lect:true,check:multD}):null,
+    S.ajuste==="No"?h("p",{cls:"hint"},"Se registrará N/A en el resultado después del ajuste."):null,
+    bloqueInicio()];
+},
+pesas(){ const s=H2(), c=calcH2();
+  const filas=[]; c.sug.cargas.forEach((x,i)=>{ if(typeof x==="number") filas.push(["Linealidad "+(i+1),x,()=>s.cm.lin[i],v=>s.cm.lin[i]=v]); });
+  filas.push(["Repetibilidad",c.sug.rep,()=>s.cm.rep,v=>s.cm.rep=v]); filas.push(["Excentricidad",c.sug.exc,()=>s.cm.exc,v=>s.cm.exc=v]);
+  const grupos=[["H 1 000 kg",x=>/^H-/.test(x)],["G 500 kg",x=>/^G-/.test(x)],["DN 20 kg (solo se marcan en la HC-02)",x=>/^DN/.test(x)]];
+  return [h("h2",{},"Cargas y pesas patrón"),
+    h("h3",{},"Cargas de prueba"),
+    c.sug.cargas.length?h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Prueba"),h("th",{},(S.cargasEq?"Del equipo":"Sugerida")+" (kg)"),h("th",{},"Carga a aplicar (kg)"))),
+      h("tbody",{},...filas.map(([t,sug,get,set],k)=>{ const {i:inp,msg}=inputNum(()=>get()??sug,v=>set(v===null||v===sug?null:v),{id:"f2-cg"+k,check:v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:(v<=0?{t:"Debe ser mayor que 0."}:null),after:()=>{ const t2=document.getElementById("compTabla2"); if(t2) t2.replaceWith(tablaSust()); }});
+        return h("tr",{},h("td",{cls:"l"},t),h("td",{cls:"mono"},sug===null?"—":fmtL(sug)),h("td",{},inp,msg)); })))):h("div",{cls:"note"},"Complete Max, alcance, N° de cargas y puntos de apoyo en el paso Servicio."),
+    h("div",{cls:"row"},h("button",{cls:"btn",type:"button",on:{click:()=>{s.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:s.cm.excIni??null};cambio();render();}}},S.cargasEq?"Restablecer cargas del equipo":"Restablecer cargas sugeridas")),
+    h("h3",{},"Pesas que lleva al servicio"),
+    h("p",{cls:"lead"},"Marque cada pesa. Las H y G se registran en la hoja Patrones de cada carga; las DN solo se marcan en la Toma de datos."),
+    h("div",{cls:"calc"},h("div",{},h("span",{},"Pesas H y G"),h("b",{},fmt(totalHG())+" kg")),h("div",{},h("span",{},"Piezas"),h("b",{},String(s.pesas.length)))),
+    h("div",{cls:"list"},...grupos.map(([g,f])=>{ const ks=HC02_COD.filter(f); const n=ks.filter(k=>s.pesas.includes(k)).length;
+      return h("details",{cls:"grp",open:n>0||g.startsWith("H")},h("summary",{},g+(n?` · ${n} seleccionada${n>1?"s":""}`:"")),
+        h("div",{cls:"row",style:"margin:6px 0"},h("button",{cls:"btn",type:"button",on:{click:()=>{ const t=ks.every(k=>s.pesas.includes(k)); s.pesas=t?s.pesas.filter(k=>!ks.includes(k)):[...new Set([...s.pesas,...ks])]; cambio(); render(); }}},ks.every(k=>s.pesas.includes(k))?"Quitar todas":"Marcar todas")),
+        h("div",{cls:"chips"},...ks.map(k=>h("button",{type:"button",cls:s.pesas.includes(k)?"on":"",on:{click:()=>{s.pesas=s.pesas.includes(k)?s.pesas.filter(x=>x!==k):[...s.pesas,k];cambio();render();}}},k)))); })),
+    h("h3",{},"Pesas y sustitución por carga de linealidad"),
+    h("p",{cls:"lead"},"Masa de pesas aplicada y carga de sustitución en cada punto (PC-II). La app propone el máximo de pesas H y G que cabe en la carga; corrija según lo aplicado."),
+    tablaSust()];
+  function tablaSust(){ const q=calcH2();
+    if(!q.cargas.length) return h("div",{cls:"note",id:"compTabla2"},"Complete los datos del equipo para calcular las cargas.");
+    return h("div",{cls:"tbl",id:"compTabla2"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Carga"),h("th",{},"Nominal (kg)"),h("th",{},"Pesas (kg)"),h("th",{},"Sustitución (kg)"),h("th",{},""))),
+      h("tbody",{},...q.cargas.map((x,i)=>{ if(typeof x!=="number") return null;
+        const est=()=>{ const p=linPef(i,x), t=linSef(i,x); const okP=componible(p), okT=p!==null&&t!==null&&Math.abs(p+t-x)<1e-6;
+          return h("span",{cls:"pill "+(okP&&okT?"ok":okP?"warn":"bad")},!okP?"Pesas no alcanzan":okT?"Completa":"Total "+fmt(r6(p+t))); };
+        const a=inputNum(()=>linPef(i,x),v=>s.linP[i]=v,{id:"f2-lp"+i,after:()=>{ document.getElementById("le"+i)?.replaceChildren(est()); }}),
+              b=inputNum(()=>linSef(i,x),v=>s.linS[i]=v,{id:"f2-ls"+i,after:()=>{ document.getElementById("le"+i)?.replaceChildren(est()); }});
+        return h("tr",{},h("td",{cls:"l"},String(i+1)),h("td",{cls:"mono"},fmtL(x)),h("td",{},a.i,a.msg),h("td",{},b.i,b.msg),h("td",{id:"le"+i},est())); })))); }
+},
+linealidad(){ const s=H2(), c=calcH2();
+  if(!c.cargas.length) return [h("h2",{},"Linealidad"),h("div",{cls:"note"},"Complete los datos del equipo en el paso Servicio.")];
+  return [h("h2",{},"Errores de indicación (linealidad)"),h("p",{cls:"lead"},"Indicación ascendente para cada carga (pesas + sustitución)."),
+    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Carga"),h("th",{},"Aplicada (kg)"),h("th",{},"Indicación"),h("th",{},"Error"),h("th",{cls:"hide-sm"},"EMT ±"))),
+      h("tbody",{},...c.cargas.map((x,i)=>{ if(typeof x!=="number") return null; const L=r6((linPef(i,x)||0)+(linSef(i,x)||0));
+        const td=h("td",{cls:"mono"}); const upd=()=>{ const v=s.lin[i]; td.textContent=v===null?"—":fmtL(r6(v-L)); };
+        const {i:inp,msg}=inputNum(()=>s.lin[i],v=>s.lin[i]=v,{id:"f2-l"+i,check:multD,lect:true,after:upd}); upd();
+        return h("tr",{},h("td",{cls:"l"},String(i+1)),h("td",{cls:"mono"},fmtL(L)),h("td",{},inp,msg),td,h("td",{cls:"mono hide-sm"},fmt(emt2(L)))); }))))];
+},
+repetibilidad(){ const s=H2(), c=calcH2();
+  return [h("h2",{},"Repetibilidad"),h("p",{cls:"lead"},"Mínimo 3 lecturas con la misma carga (0,5 Max ≤ L ≤ Max), retirándola entre cada lectura. La 4ª y la 5ª son opcionales: anote las dos o déjelas vacías (en la HC-02 quedan como N/A)."),
+    h("div",{cls:"calc"},h("div",{},h("span",{},"Carga"),h("b",{},c.rep?fmtL(c.rep)+" kg":"—"))),
+    h("div",{cls:"grid"},...s.rep.map((_,i)=>campoNum((i+1)+"ª lectura"+(i>=3?" (opcional)":""),()=>s.rep[i],x=>s.rep[i]=x,{id:"f2-r"+i,check:multD,lect:true})))];
+},
+excentricidad(){ const s=H2(), c=calcH2(), k=nSec();
+  return [h("h2",{},"Excentricidad"),
+    h("div",{cls:"q"},h("p",{},"N° de secciones"),seg(["2","3"],()=>s.secciones,v=>s.secciones=v||"3",()=>render())),
+    h("p",{cls:"lead"},"Carga de "+(c.exc?fmtL(c.exc)+" kg":"—")+" en cada sección, con indicación a la entrada y a la salida del vehículo o la carga."),
+    h("div",{cls:"tbl"},h("table",{},h("thead",{},h("tr",{},h("th",{cls:"l"},"Sección"),h("th",{},"Entrada"),h("th",{},"Salida"))),
+      h("tbody",{},...[0,1,2].slice(0,k).map(i=>{ const a=inputNum(()=>s.excE[i],v=>s.excE[i]=v,{id:"f2-xe"+i,lect:true,check:multD}), b=inputNum(()=>s.excS[i],v=>s.excS[i]=v,{id:"f2-xs"+i,lect:true,check:multD});
+        return h("tr",{},h("td",{cls:"l"},String(i+1)),h("td",{},a.i,a.msg),h("td",{},b.i,b.msg)); }))))];
+},
+cierre(){ const s=H2();
+  return [h("h2",{},"Condiciones finales y observaciones"),
+    h("div",{cls:"grid"},
+      campoNum("Valor residual sin carga (kg)",()=>s.residual,v=>s.residual=v,{id:"f2-res",lect:true,check:multD}),
+      campoNum("Temperatura final (°C)",()=>S.t1,v=>S.t1=v,{id:"f-t1",check:v=>{ if(v<15||v>40) return {t:"Fuera de 15 °C a 40 °C.",lvl:"warn"}; if(S.t0!==null&&Math.abs(v-S.t0)>=5) return {t:"Variación de "+fmt(r6(Math.abs(v-S.t0)))+" °C durante la calibración.",lvl:"warn"}; return null;}}),
+      campoNum("Humedad final (%)",()=>S.h1,v=>S.h1=v,{id:"f-h1",check:v=>v<30||v>90?{t:"Fuera de 30 % a 90 %.",lvl:"warn"}:null})),
+    h("label",{cls:"f"},"Observaciones",h("textarea",{id:"f-obs",placeholder:"Escriba N/A si no hay observaciones",on:{input:e=>{S.obs=e.target.value;cambio();}}},S.obs))];
+}};
+function pendientesH2(){
+  const f=[]; const s=H2(), c=calcH2(), k=nSec();
+  if(!S.id) f.push([0,"N° de servicio"]); if(!S.pgvi) f.push([0,"N° de registro PG-VI-F3"]); if(!(S.consec>0)) f.push([0,"consecutivo de calibración del día"]); if(!S.tecnico) f.push([0,"técnico"]); if(!S.bd.cliente) f.push([0,"cliente"]); if(!S.bd.lugar.trim()) f.push([0,"lugar de calibración"]);
+  if(!(S.max>0)||!(S.d>0)||!(S.alcance>0)) f.push([0,"Max, d y alcance"]); if(!(s.apoyos>1)) f.push([0,"N° de puntos de apoyo"]);
+  if(S.tipo==="calibración N° mod."&&!S.motivo) f.push([0,"motivo de la corrección"]);
+  if(s.previas.some(x=>!x)) f.push([1,s.previas.filter(x=>!x).length+" condiciones previas"]);
+  if(s.comp.some(x=>!x.tiene||(x.tiene==="Sí"&&!x.estado))) f.push([1,"inspección de componentes"]);
+  if(!S.llegada) f.push([2,"hora de llegada"]); if(!S.higro) f.push([3,"termohigrómetro"]); if(!S.inicio) f.push([3,"hora de inicio de la calibración"]); if(S.t0===null||S.h0===null) f.push([3,"temperatura y humedad iniciales"]);
+  if(s.excIniE.slice(0,k).some(x=>x===null)||s.excIniS.slice(0,k).some(x=>x===null)) f.push([3,"excentricidad inicial"]);
+  if(cargaIniEf()===null||s.indIni===null) f.push([3,"error de indicación inicial"]);
+  if(!S.ajuste) f.push([3,"indicar si se realizó ajuste"]); if(S.ajuste==="Sí"&&s.postAjuste===null) f.push([3,"indicación después del ajuste"]);
+  if(!s.pesas.length) f.push([4,"seleccionar pesas"]);
+  else if(c.cargas.some((x,i)=>typeof x==="number"&&(!componible(linPef(i,x))||Math.abs(linPef(i,x)+linSef(i,x)-x)>1e-6))) f.push([4,"pesas y sustitución de las cargas de linealidad"]);
+  if(c.cargas.some((x,i)=>typeof x==="number"&&s.lin[i]===null)) f.push([5,"indicaciones de linealidad"]);
+  if(s.rep.slice(0,3).some(x=>x===null)) f.push([6,"3 lecturas de repetibilidad"]); else if((s.rep[3]===null)!==(s.rep[4]===null)) f.push([6,"la 4ª y 5ª lectura de repetibilidad (anote las dos o ninguna)"]);
+  if(s.excE.slice(0,k).some(x=>x===null)||s.excS.slice(0,k).some(x=>x===null)) f.push([7,"lecturas de excentricidad"]);
+  if(s.residual===null) f.push([8,"valor residual"]); if(S.t1===null||S.h1===null) f.push([8,"condiciones finales"]); if(!S.obs.trim()) f.push([8,"observaciones (o N/A)"]);
+  return f;
+}
+function capturaH2(){
+  const s=H2(), c=calcH2(), k=nSec(); const b={}; const set=(r,v)=>{ if(v!==null&&v!==undefined&&v!=="") b[r]=v; };
+  set("G9",dos(S.fecha.d)); set("J9",dos(S.fecha.m)); set("N9",S.fecha.a); set("Y9",frac(S.llegada)); set("AX6",idHC()); set("AT7",S.tipo); set("BA7",S.tecnico); set("AY7",S.consec>0?dos(S.consec):null);
+  { const m=/^\s*(7[0-8])\s*-\s*(.+)$/.exec(S.pgvi||""); if(m){ set("AZ5",Number(m[1])); set("BB5",/^\d+$/.test(m[2])?Number(m[2]):m[2]); } else set("BB5",/^\d+$/.test(S.pgvi||"")?Number(S.pgvi):S.pgvi); }
+  s.previas.forEach((v,i)=>set("AF"+(26+i),v));
+  s.comp.forEach((x,i)=>{ const r=28+i; if(x.tiene==="Sí") b["AR"+r]="X"; if(x.tiene==="No") b["AT"+r]="X"; if(x.estado) b[{Bueno:"AV",Regular:"AX",Malo:"AZ"}[x.estado]+r]="X"; });
+  if(S.higro) b.AZ17=Number(S.higro); /* número: la plantilla compara $AZ17="32"*AND(...) */ set("AS18",S.t0); set("AZ18",S.h0); set("AW20",frac(S.inicio));
+  ["N","V","AC"].forEach((col,i)=>{ if(i<k){ set(col+"42",s.excIniE[i]); set(col+"43",s.excIniS[i]); } });
+  set("N45",s.indIni); if(S.ajuste==="Sí") set("N46",s.postAjuste); else if(S.ajuste==="No") b.N46="N/A";
+  c.cargas.forEach((x,i)=>{ if(typeof x!=="number") return; set("E"+(55+i),linPef(i,x)); set("I"+(55+i),linSef(i,x)); set("N"+(55+i),s.lin[i]); });
+  { const n=nRep2(); s.rep.forEach((v,i)=>{ if(i<n) set("U"+(57+i),v); else b["U"+(57+i)]="N/A"; }); }
+  for(let i=0;i<k;i++){ set("AC"+(57+i),s.excE[i]); set("AF"+(57+i),s.excS[i]); }
+  set("AT41",S.t1); set("BA41",S.h1); set("G65",s.residual);
+  const extra=S.tipo==="calibración N° mod."?("Corrección "+(S.sufijo||"")+": "+(S.motivo||"")+". "):"";
+  set("B68",(extra+(S.obs||"")).trim());
+  const nv=v=>typeof v==="number"?v:"N/A";
+  const bd={A:idHC(),B:normCodigo(S.bd.codigo),C:s.proc||PROC2[0],D:S.bd.direccion,E:S.bd.equipo,F:S.bd.cliente,G:S.bd.marca,H:S.bd.modelo,I:S.bd.serie,J:S.bd.periodo,K:S.bd.ubicacion,L:S.bd.lugar,
+    M:S.max?`0 kg a ${fmt(S.max)} kg`.replace(/ /g," "):"",N:S.max,O:S.d,P:"kg",R:S.alcance,U:Number(S.ncargas),V:s.apoyos,W:cargaIniEf(),AI:S.bd.correo,AJ:S.bd.telefono,AK:S.bd.encargado};
+  const reemplazo = c.cargas.length ? {X:nv(c.excIni),Y:nv(c.cargas[0]),Z:nv(c.cargas[1]),AA:nv(c.cargas[2]),AB:nv(c.cargas[3]),AC:nv(c.cargas[4]),AD:nv(c.cargas[5]),AE:nv(c.cargas[6]),AF:nv(c.cargas[7]),AG:nv(c.rep),AH:nv(c.exc)} : undefined;
+  const refsLect=Object.keys(b).filter(r=>typeof b[r]==="number"&&/^(N|V|AC)4[23]$|^N4[56]$|^N(5[5-9]|6[0-2])$|^U(5[7-9]|6[01])$|^(AC|AF)5[7-9]$|^G65$/.test(r));
+  const formato_lecturas = S.d ? {decimales:dec(+S.d.toFixed(6)),celdas:{"Toma de datos":refsLect}} : undefined;
+  return {hc:"HC-02",servicio:S.id,uid:S.uid,BD:bd,BD_reemplazar_formula:reemplazo,celdas:{"Toma de datos":b},formato_lecturas,
+    patrones:{seleccion:s.pesas.slice(),cargas:c.cargas.map((x,i)=>typeof x==="number"?linPef(i,x):"N/A")},
+    meta:{equipo_id:S.equipoId||"",contacto_id:S.contactoId||"",certificado:numCertificado(),pgvi:S.pgvi,forma:"apoyos:"+(s.apoyos||""),app:"HC-01 Campo",version:"0.2-HC02",plantilla:"HC-02 básculas camioneras V9",tecnico:S.tecnico,ajuste:S.ajuste,capturado:new Date().toISOString()}};
+}
+
+function campoFecha(){ // fecha de calibración: hoy por defecto; editable con calendario
+  const iso=f=>f.a+"-"+dos(f.m)+"-"+dos(f.d); const esHoy=iso(S.fecha)===iso(hoy());
+  return h("label",{cls:"f"},"Ingrese fecha de calibración",
+    h("div",{cls:"row"},h("input",{id:"f-fecha",type:"date",value:iso(S.fecha),max:iso(hoy()),style:"flex:1;min-width:150px",on:{change:e=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(e.target.value); if(!m) return; S.fecha={a:+m[1],m:+m[2],d:+m[3]}; cambio(); render(); }}}),
+      esHoy?null:h("button",{cls:"btn",type:"button",on:{click:e=>{ e.preventDefault(); S.fecha=hoy(); cambio(); render(); }}},"Usar hoy")));
 }
 /* ---------- pasos ---------- */
 const V = {
@@ -566,10 +760,12 @@ servicio(){
   const eq=calcEquipo(S);
   const calc=h("div",{cls:"calc",id:"calcEq"});
   const pintaCalc=()=>{ const q=calcEquipo(S); calc.replaceChildren(
-    ...[["e",q.e!==null?fmt(q.e)+" "+unidad():"—"],["Clase",q.clase||"—"],["n = Max/e",q.n?fmt(Math.round(q.n),0):"—"],["Mín",q.min!==null?fmt(q.min)+" "+unidad():"—"],["Cargas",q.cargas.filter(x=>typeof x==="number").length||"—"]].map(([a,b])=>h("div",{},h("span",{},a),h("b",{},b))));
+    ...[["e",q.e!==null?fmt(q.e)+" "+unidad():"—"],["Clase",q.clase||"—"],["n = Max/e",q.n?fmt(Math.round(q.n),0):"—"],["Mín",q.min!==null?fmt(q.min)+" "+unidad():"—"],["Cargas",(esH2()?calcH2().cargas:q.cargas).filter(x=>typeof x==="number").length||"—"]].concat(esH2()?[["Exc. Max/(n−1)",calcH2().excIni?fmt(calcH2().excIni)+" kg":"—"]]:[]).map(([a,b])=>h("div",{},h("span",{},a),h("b",{},b))));
     $("#avisosEq")?.replaceChildren(...q.avisos.map(t=>h("div",{cls:"note"},t))); };
   setTimeout(pintaCalc,0);
   return [h("h2",{},"Servicio y equipo"),
+    h("div",{cls:"q"},h("p",{},h("b",{},"Hoja de cálculo a generar")),h("div",{cls:"seg",role:"group",id:"selHC"},
+      ...[["HC-01","HC-01 · Balanzas"],["HC-02","HC-02 · Básculas camioneras"]].map(([k,t])=>h("button",{type:"button",cls:S.plantilla===k||(!S.plantilla&&k==="HC-01")?"on":"",on:{click:()=>cambiarPlantilla(k)}},t)))),
     selectorBase(),
     S.mismoLugarDe!==undefined&&!S.enviado&&!S.bd.serie?h("div",{cls:"note ok"},"Siguiente equipo en el mismo lugar"+(S.mismoLugarDe?" (después del servicio "+S.mismoLugarDe+")":"")+": el N° de servicio sigue la numeración ("+(S.id||"—")+"); se copiaron los datos del cliente, la hora de llegada ("+(S.llegada||"—")+"), el técnico, el termohigrómetro y las pesas. El N° PG-VI-F3 se propone igual al anterior: cámbielo si este equipo tiene otro. La temperatura y la humedad se registran de nuevo."):null,
     S.ejemplo?h("div",{cls:"note"},"Está viendo un servicio de ejemplo con datos ficticios. Use «Nuevo servicio» en el paso Revisar y enviar para empezar uno real."):null,
@@ -578,7 +774,7 @@ servicio(){
         hint:"Número que asigna el técnico según el orden que recibe los equipos para la calibración."}),
       campoSel("Tipo de servicio",TIPO_SERV,()=>S.tipo,v=>S.tipo=v,{id:"f-tipo",after:()=>render()}),
       campoSel("Técnico",TECNICOS,()=>S.tecnico,v=>{S.tecnico=v; if(S.consec===null&&v) S.consec=sugerirConsecutivo();},{id:"f-tec",after:()=>render()}),
-      h("label",{cls:"f"},"Fecha",h("input",{id:"f-fecha",value:`${String(S.fecha.d).padStart(2,"0")}/${String(S.fecha.m).padStart(2,"0")}/${S.fecha.a}`,readonly:true}),h("span",{cls:"hint"},"Se toma de la tablet"))),
+      campoFecha()),
     S.tipo==="calibración N° mod."?campoTexto("Motivo de la corrección",()=>S.motivo,v=>S.motivo=v,{id:"f-motivo"}):null,
     h("h3",{},"Registro y certificado"),
     h("div",{cls:"grid"},
@@ -597,20 +793,24 @@ servicio(){
       campoTexto("Lugar de calibración",()=>S.bd.lugar,v=>S.bd.lugar=v,{id:"f-lugar",ph:"Ej. Recepción de materia prima",hint:"Área específica donde se calibra el equipo"})),
     h("h3",{},"Equipo (datos de placa)"),
     h("div",{cls:"grid"},
-      campoSel("Tipo de equipo",TIPOS_EQ,()=>S.bd.equipo,v=>S.bd.equipo=v,{id:"f-eq"}),
+      campoSel("Tipo de equipo",TIPOS_EQ.concat(TIPOS_EQ2),()=>S.bd.equipo,v=>{ S.bd.equipo=v; if(TIPOS_EQ2.includes(v)&&!esH2()) cambiarPlantilla("HC-02"); else if(v&&!TIPOS_EQ2.includes(v)&&esH2()) cambiarPlantilla("HC-01"); },{id:"f-eq"}),
       campoTexto("Marca",()=>S.bd.marca,v=>S.bd.marca=v,{id:"f-marca"}),
       campoTexto("Modelo",()=>S.bd.modelo,v=>S.bd.modelo=v,{id:"f-modelo"}),
       campoTexto("Serie",()=>S.bd.serie,v=>S.bd.serie=v,{id:"f-serie"}),
       campoTexto("Código del equipo",()=>S.bd.codigo,v=>S.bd.codigo=v,{id:"f-cod",extra:botonesSinCodigo(()=>S.bd.codigo,v=>S.bd.codigo=v,"f-cod")}),
       campoNum("Periodo de calibración (meses)",()=>S.bd.periodo,v=>S.bd.periodo=v,{id:"f-per",hint:"0 = a definir por el cliente"}),
-      campoSel("Unidad",["g","kg"],()=>S.unidad,v=>S.unidad=v,{id:"f-u",after:pintaCalc}),
-      campoNum("Capacidad máxima (Max)",()=>S.max,v=>S.max=v,{id:"f-max",after:pintaCalc}),
-      campoNum("Resolución (d)",()=>S.d,v=>S.d=v,{id:"f-d",after:pintaCalc}),
-      campoNum("Alcance de trabajo",()=>S.alcance,v=>S.alcance=v,{id:"f-alc",after:pintaCalc,check:v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:null}),
-      campoSel("N° de cargas de linealidad",["5","6","7","8"],()=>S.ncargas,v=>{ S.ncargas=v; if(S.cm) S.cm.lin=Array(8).fill(null); },{id:"f-nc",after:pintaCalc})),
+      esH2()?null:campoSel("Unidad",["g","kg"],()=>S.unidad,v=>S.unidad=v,{id:"f-u",after:pintaCalc}),
+      campoNum("Capacidad máxima (Max)"+(esH2()?" (kg)":""),()=>S.max,v=>S.max=v,{id:"f-max",after:pintaCalc}),
+      campoNum("Resolución (d)"+(esH2()?" (kg)":""),()=>S.d,v=>S.d=v,{id:"f-d",after:pintaCalc}),
+      campoNum("Alcance de trabajo"+(esH2()?" (kg)":""),()=>S.alcance,v=>S.alcance=v,{id:"f-alc",after:pintaCalc,check:v=>S.max&&v>S.max?{t:"Mayor que la capacidad máxima."}:null}),
+      campoSel("N° de cargas de linealidad",["5","6","7","8"],()=>S.ncargas,v=>{ S.ncargas=v; if(S.cm) S.cm.lin=Array(8).fill(null); if(S.h2) S.h2.cm.lin=Array(8).fill(null); },{id:"f-nc",after:pintaCalc}),
+      esH2()?campoNum("N° de puntos de apoyo",()=>H2().apoyos,v=>H2().apoyos=v===null?null:Math.round(v),{id:"f-apo",after:pintaCalc,hint:"Define la carga de excentricidad: Max/(n − 1)"}):null,
+      esH2()?campoSel("Procedimiento",PROC2,()=>H2().proc,v=>H2().proc=v||PROC2[0],{id:"f-proc"}):null),
+    esH2()&&S.ncargas!=="8"?h("div",{cls:"note bad"},"La plantilla HC-02 V9 calcula la incertidumbre con la carga 8 (Max). Con menos de 8 cargas la hoja Incertidumbre PC-II queda en #¡VALOR!. Use 8 cargas."):null,
     h("h3",{},"Calculado como en la plantilla"), calc, h("div",{id:"avisosEq",cls:"list"})];
 },
 previas(){
+  if(esH2()) return V2.previas();
   return [h("h2",{},"Condiciones previas"),
     h("div",{}, ...PREGUNTAS.map((q,i)=>h("div",{cls:"q"},h("p",{},q),seg(["Sí","No","N/A"],()=>S.previas[i],v=>S.previas[i]=v)))),
     h("h3",{},"Identificación del equipo"),
@@ -627,6 +827,7 @@ ambiente(){
     h("p",{cls:"lead"},"La hora de llegada inicia el tiempo de ambientación. La hora de inicio de la calibración, el termohigrómetro y las condiciones ambientales iniciales se registran al final de Pruebas iniciales (PC-I 5.3, Nota 1).")];
 },
 iniciales(){
+  if(esH2()) return V2.iniciales();
   const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma];
   if(!eq.iniciales.length) return [h("h2",{},"Pruebas iniciales"),h("div",{cls:"note"},"Complete Max, d, alcance y N° de cargas en el paso Servicio.")];
   if(!S.cm) S.cm={lin:Array(8).fill(null),rep:null,exc:null,excIni:null,ini:[null,null,null]}; if(!S.cm.ini) S.cm.ini=[null,null,null];
@@ -663,6 +864,7 @@ iniciales(){
     bloqueInicio()];
 },
 pesas(){
+  if(esH2()) return V2.pesas();
   const eq=calcEquipo(S); const u=unidad();
   const grupos={"Juegos AN / ANC":k=>/^ANC?-|^ANP/.test(k),"Juegos BN de 1 a 5 kg (BN-12 a BN-15)":k=>/^BN-1[2-5]$/.test(k),"BN 5 kg":k=>/^BN-(0\d|1[01])$/.test(k)||/^BNC/.test(k),"CN 10 kg":k=>/^CNC?-/.test(k),"DN 20 kg":k=>/^DNC?-/.test(k),"G 500 kg":k=>/^G-/.test(k),"H 1 000 kg":k=>/^H-/.test(k)};
   const keys=Object.keys(INV);
@@ -695,6 +897,7 @@ pesas(){
         return h("tr",{},h("td",{cls:"l"},String(i+1)),h("td",{cls:"mono"},fmtL(c)),h("td",{cls:"l comp"},cp?resumenPiezas(cp):"—"),h("td",{},h("span",{cls:"pill "+(cp?"ok":"bad")},cp?"Completa":"No alcanza"))); })))); }
 },
 linealidad(){
+  if(esH2()) return V2.linealidad();
   const eq=calcEquipo(S); const u=unidad();
   if(!eq.cargas.length) return [h("h2",{},"Linealidad"),h("div",{cls:"note"},"Complete los datos del equipo en el paso Servicio.")];
   return [h("h2",{},"Errores de indicación (linealidad)"),h("p",{cls:"lead"},"Indicación ascendente para cada carga."),
@@ -706,6 +909,7 @@ linealidad(){
     tr.children[3].textContent=E===null?"—":fmtL(E); tr.children[5].replaceChildren(E===null?"":h("span",{cls:"pill "+(Math.abs(E)>M?"bad":"ok")},Math.abs(E)>M?"Fuera":"Dentro")); }
 },
 repetibilidad(){
+  if(esH2()) return V2.repetibilidad();
   const eq=calcEquipo(S); const u=unidad(); const min3=repMin3(eq);
   const v=S.rep.filter(x=>x!==null); const prom=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
   const sd=v.length>1?Math.sqrt(v.reduce((a,b)=>a+(b-prom)**2,0)/(v.length-1)):null; const dif=v.length?Math.max(...v)-Math.min(...v):null;
@@ -714,6 +918,7 @@ repetibilidad(){
     h("div",{cls:"grid"},...S.rep.map((_,i)=>campoNum((i+1)+"ª lectura"+(min3&&i>=3?" (opcional)":""),()=>S.rep[i],x=>S.rep[i]=x,{id:"f-r"+i,check:multD,lect:true})))];
 },
 excentricidad(){
+  if(esH2()) return V2.excentricidad();
   const eq=calcEquipo(S); const u=unidad(); const F=FORMAS[S.forma]; const n=F?F.pos.length:0;
   const picker=selectorForma();
   if(!F) return [h("h2",{},"Excentricidad"),h("p",{cls:"lead"},"Seleccione la forma del receptor de carga. Se marcará en la HC-01 y define las posiciones de la prueba."),picker];
@@ -728,6 +933,7 @@ excentricidad(){
         after:()=>{ document.querySelector('#plateBig [data-p="'+(i+1)+'"]')?.classList.toggle("filled",S.ecc[i]!==null); }}))))];
 },
 cierre(){
+  if(esH2()) return V2.cierre();
   return [h("h2",{},"Condiciones finales y observaciones"),
     h("div",{cls:"grid"},
       campoNum("Temperatura final (°C)",()=>S.t1,v=>S.t1=v,{id:"f-t1",check:v=>{ if(v<15||v>40) return {t:"Fuera de 15 °C a 40 °C.",lvl:"warn"}; if(S.t0!==null&&Math.abs(v-S.t0)>=5) return {t:"Variación de "+fmt(r6(Math.abs(v-S.t0)))+" °C durante la calibración.",lvl:"warn"}; return null;}}),
@@ -739,7 +945,7 @@ envio(){
   const cap=construirCaptura();
   const lista=Object.values(B).filter(b=>b.id&&b.id!==S.id);
   return [h("h2",{},"Revisar y enviar"),
-    ok?h("div",{cls:"note ok"},"La captura está completa. Al enviarla, el laboratorio genera la HC-01 automáticamente."):h("div",{cls:"note bad"},h("b",{},faltan.length+" pendiente"+(faltan.length>1?"s":"")+":"),h("ul",{},...faltan.map(([p,t])=>h("li",{},h("a",{href:"#",on:{click:e=>{e.preventDefault();paso=p;render();}}},PASOS[p][1]),": "+t)))),
+    ok?h("div",{cls:"note ok"},"La captura está completa. Al enviarla, el laboratorio genera la "+hcNombre()+" automáticamente."):h("div",{cls:"note bad"},h("b",{},faltan.length+" pendiente"+(faltan.length>1?"s":"")+":"),h("ul",{},...faltan.map(([p,t])=>h("li",{},h("a",{href:"#",on:{click:e=>{e.preventDefault();paso=p;render();}}},PASOS[p][1]),": "+t)))),
     S.ejemplo?h("div",{cls:"note"},"Este es el servicio de ejemplo y no se envía tal cual. Para probar el envío, conviértalo en una prueba: se le asigna un N° de servicio PRUEBA y se puede enviar.",
       h("div",{cls:"row",style:"margin-top:8px"},h("button",{cls:"btn sig",type:"button",id:"btnPrueba",on:{click:()=>{ const d=new Date(); S.ejemplo=false; S.id="PRUEBA-"+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+"-"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0"); S.bd.cliente="PRUEBA – "+S.bd.cliente; S.obs="Captura de PRUEBA desde la app – no válida para emisión."; cambio(); render(); }}},"Convertir en servicio de prueba"))):null,
     MODO_GOOGLE?h("div",{cls:"grid"},h("label",{cls:"f"},"Código de acceso del laboratorio",h("input",{id:"f-clave",type:"password",value:leerClave(),autocomplete:"off"}),h("span",{cls:"hint"},"Lo entrega el laboratorio. Se recuerda en este equipo."))):null,
@@ -774,6 +980,7 @@ function siguienteMismoLugar(){
   const n=nuevo(false);
   const cli=["cliente","direccion","encargado","correo","telefono","ubicacion","lugar"];
   cli.forEach(k=>n.bd[k]=a.bd[k]||"");
+  n.plantilla=a.plantilla||"HC-01"; if(a.plantilla==="HC-02"){ n.unidad="kg"; n.bd.procedimiento="PC-II"; n.bd.equipo=a.bd.equipo; n.h2=nuevoH2(); n.h2.pesas=(a.h2&&a.h2.pesas||[]).slice(); n.h2.proc=(a.h2&&a.h2.proc)||PROC2[0]; }
   n.llegada=a.llegada; n.pgvi=a.pgvi||""; n.tecnico=a.tecnico; n.higro=a.higro; n.sets=(a.sets||[]).slice(); n.tipo=a.tipo;
   n.id=/^\d+$/.test(a.id||"")?String(+a.id+1):""; n.clienteId=a.clienteId||null; n.contactoId=a.contactoId||null; n.bd.encargado=a.bd.encargado; n.bd.correo=a.bd.correo; n.bd.telefono=a.bd.telefono; n.fecha=hoy(); n.consec=(a.consec>0?a.consec:0)+1; n.mismoLugarDe=a.id||"";
   S=n; paso=0; cambio(); render(); window.scrollTo(0,0);
@@ -782,6 +989,7 @@ const fmtPeso = g => g>=1000 ? fmt(g/1000)+" kg" : fmt(g)+" g";
 function resumenPiezas(ps){ const m=new Map(); ps.forEach(p=>{const k=p.set; if(!m.has(k))m.set(k,[]); m.get(k).push(p.v);}); return [...m].map(([k,v])=>k+": "+v.map(fmtPeso).join(" + ")).join(" · "); }
 
 function pendientes(){
+  if(esH2()) return pendientesH2();
   const f=[]; const eq=calcEquipo(S);
   if(!S.id) f.push([0,"N° de servicio"]); if(!S.pgvi) f.push([0,"N° de registro PG-VI-F3"]); if(!(S.consec>0)) f.push([0,"consecutivo de calibración del día"]); if(!S.tecnico) f.push([0,"técnico"]); if(!S.bd.cliente) f.push([0,"cliente"]); if(!S.bd.lugar.trim()) f.push([0,"lugar de calibración"]);
   if(!(S.max>0)||!(S.d>0)||!(S.alcance>0)) f.push([0,"Max, d y alcance"]);
@@ -807,6 +1015,7 @@ function estadoPaso(i){ const p=pendientes().filter(x=>x[0]===i); return p.lengt
 function frac(hhmm){ if(!hhmm) return null; const [a,b]=hhmm.split(":").map(Number); return r6((a*60+b)/1440); }
 function idHC(){ return /^\d+$/.test(S.id||"")?Number(S.id):S.id; } // 1, 2, 3 se escriben como número (igual que en Excel)
 function construirCaptura(){
+  if(esH2()) return capturaH2();
   const eq=calcEquipo(S); const b={}; const set=(k,v)=>{ if(v!==null&&v!==undefined&&v!=="") b[k]=v; };
   set("G5",dos(S.fecha.d)); set("J5",dos(S.fecha.m)); set("N5",S.fecha.a); set("Y5",frac(S.llegada)); set("BE6",idHC()); set("AZ7",S.tipo); set("BH7",S.tecnico); set("BH5",S.pgvi); set("BF7",S.consec>0?dos(S.consec):null); if(S.tipo==="calibración N° mod.") set("BI7",S.sufijo); if(S.tipo==="calibración N° mod.") set("AU15",S.motivo);
   S.previas.forEach((v,i)=>set("AC"+(19+i),v));
@@ -867,10 +1076,10 @@ function enviarGoogle(cap){
   const msg=$("#envioMsg"); const clave=($("#f-clave")?.value||leerClave()).trim();
   try{ localStorage.setItem("hc01-clave",clave); }catch(e){}
   if(!navigator.onLine){ encolar(cap,clave); render(); $("#envioMsg").replaceChildren(h("div",{cls:"note"},"Sin señal: la captura quedó en cola y se enviará sola al recuperar la conexión.")); return; }
-  $("#btnEnviar").disabled=true; msg.replaceChildren(h("div",{cls:"note"},"Enviando y generando la HC-01…"));
+  $("#btnEnviar").disabled=true; msg.replaceChildren(h("div",{cls:"note"},"Enviando y generando la "+hcNombre()+"…"));
   gas("recibirCaptura",JSON.stringify(cap),clave)
     .then(r=>{ marcarEnviado(cap.uid,r); render();
-      $("#envioMsg").replaceChildren(h("div",{cls:r.aviso?"note":"note ok"},r.aviso?("Captura recibida. "+r.aviso):("Enviado. HC-01 generada: "+r.nombre+". El laboratorio la recibió por correo y en Drive."))); })
+      $("#envioMsg").replaceChildren(h("div",{cls:r.aviso?"note":"note ok"},r.aviso?("Captura recibida. "+r.aviso):("Enviado. "+hcNombre()+" generada: "+r.nombre+". El laboratorio la recibió por correo y en Drive."))); })
     .catch(e=>{ $("#btnEnviar").disabled=false;
       if(esFallaRed(e)){ encolar(cap,clave); render(); $("#envioMsg").replaceChildren(h("div",{cls:"note"},"Sin conexión: la captura quedó en cola y se enviará sola al recuperar la señal.")); return; }
       $("#envioMsg").replaceChildren(h("div",{cls:"note bad"},"No se pudo enviar: "+(e&&e.message||e)+". Los datos siguen guardados en este equipo; corrija e intente de nuevo.")); });
@@ -888,12 +1097,13 @@ async function enviar(){
   }catch(e){ $("#btnEnviar").disabled=false; const c=e?.code||""; msg.replaceChildren(h("div",{cls:"note bad"}, c==="not_granted"||c==="permission_denied"?"Su usuario no tiene permiso para enviar. Pida al laboratorio que lo agregue como colaborador.":"No se pudo enviar ("+(c||"error")+"). Los datos siguen guardados en este equipo; intente de nuevo.")); }
 }
 async function descargar(){ const msg=$("#envioMsg"); try{ const dl=await window.claude?.use?.("downloads"); if(!dl){ msg.replaceChildren(h("div",{cls:"note"},"La descarga no está disponible en esta vista. Abra «Ver datos que recibe la plantilla» y copie el contenido.")); return; }
-  await dl.save({filename:(S.id||"captura")+"_HC-01.json",data:JSON.stringify(construirCaptura(),null,1)}); }catch(e){ msg.replaceChildren(h("div",{cls:"note"},"Descarga cancelada.")); } }
+  await dl.save({filename:(S.id||"captura")+"_"+hcNombre()+".json",data:JSON.stringify(construirCaptura(),null,1)}); }catch(e){ msg.replaceChildren(h("div",{cls:"note"},"Descarga cancelada.")); } }
 
 /* ---------- render ---------- */
 function pintarPasos(){ $("#steps").replaceChildren(...PASOS.map(([k,t],i)=>h("button",{type:"button",role:"tab","aria-selected":i===paso,cls:i===paso?"on":"",on:{click:()=>{paso=i;render();}}},h("span",{cls:"n"},String(i+1)),t,h("span",{cls:"dot "+(i<9?estadoPaso(i):"")})))); }
 function render(){
   $("#svcTag").textContent=S.id||"Sin servicio";
+  { const t=document.getElementById("subHC"); if(t) t.textContent=esH2()?"HC-02 · PC-II-F1 básculas camioneras":"HC-01 · PC-I-F1 balanzas"; }
   $("#sw-toma").classList.toggle("on",vista==="toma"); $("#sw-base").classList.toggle("on",vista==="base");
   $("#steps").hidden=vista!=="toma"; document.querySelector("nav.foot").hidden=vista!=="toma";
   if(vista==="base"){ $("#main").replaceChildren(h("section",{cls:"card"},...vistaBase())); return; }
