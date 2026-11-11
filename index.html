@@ -124,7 +124,7 @@ pre.json{font:12px/1.4 var(--f-mono);background:var(--field);border:1px solid va
 <div class="wrap">
   <header class="bar">
     <div class="top">
-      <div class="brand">Calibración IPFNA<small><span id="subHC">HC-01 · PC-I-F1 balanzas</span> · app 1011-1334</small></div>
+      <div class="brand">Calibración IPFNA<small><span id="subHC">HC-01 · PC-I-F1 balanzas</span> · app 1111-1154</small></div>
       <div class="row"><span class="svc" id="svcTag">Sin servicio</span><span class="status" id="saveStatus">Borrador en este equipo</span></div>
     </div>
     <div class="seg" id="vistaSw" role="tablist" style="width:max-content"><button type="button" id="sw-toma" class="on">Toma de datos</button><button type="button" id="sw-base">Clientes y equipos</button></div>
@@ -806,7 +806,6 @@ servicio(){
       campoSel("N° de cargas de linealidad",["5","6","7","8"],()=>S.ncargas,v=>{ S.ncargas=v; if(S.cm) S.cm.lin=Array(8).fill(null); if(S.h2) S.h2.cm.lin=Array(8).fill(null); },{id:"f-nc",after:pintaCalc}),
       esH2()?campoNum("N° de puntos de apoyo",()=>H2().apoyos,v=>H2().apoyos=v===null?null:Math.round(v),{id:"f-apo",after:pintaCalc,hint:"Define la carga de excentricidad: Max/(n − 1)"}):null,
       esH2()?campoSel("Procedimiento",PROC2,()=>H2().proc,v=>H2().proc=v||PROC2[0],{id:"f-proc"}):null),
-    esH2()&&S.ncargas!=="8"?h("div",{cls:"note bad"},"La plantilla HC-02 V9 calcula la incertidumbre con la carga 8 (Max). Con menos de 8 cargas la hoja Incertidumbre PC-II queda en #¡VALOR!. Use 8 cargas."):null,
     h("h3",{},"Calculado como en la plantilla"), calc, h("div",{id:"avisosEq",cls:"list"})];
 },
 previas(){
